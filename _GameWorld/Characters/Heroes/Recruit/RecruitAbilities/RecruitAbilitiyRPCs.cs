@@ -14,7 +14,7 @@ public class RecruitAbilityRPCs : AbilityRPCs
     [Rpc(SendTo.Everyone)]
     private void ClientBombRPC(ulong ownerId, Vector2 throwVelocity2D)
     {
-        var owner = CharacterManager.Instance.Players[ownerId];
+        var owner = CharacterManager.Instance.Mediators[ownerId];
         var bombInstance = Instantiate(bomb, owner.GetPosition(), Quaternion.identity);
         bombInstance.Init(this, owner, throwVelocity2D);
     }
@@ -60,7 +60,7 @@ public class RecruitAbilityRPCs : AbilityRPCs
         if (NetworkManager.Singleton.LocalClientId == teamMate)
         {
             dashPostMortem.ExecuteDash(
-                CharacterManager.Instance.Players[teamMate],
+                CharacterManager.Instance.Mediators[teamMate],
                 velocity
             );
         }

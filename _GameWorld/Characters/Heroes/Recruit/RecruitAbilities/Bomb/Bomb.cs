@@ -62,12 +62,13 @@ public class Bomb : MonoBehaviour
 
 
         var manager = CharacterManager.Instance;
-        foreach(var player in manager.Players.Values)
+        foreach(var player in manager.Mediators.Values)
         {
             var distance = Vector2.Distance(player.GetPosition(), transform.position);
             if (distance <= ExplosionRadius)
             {
                 var damage = Mathf.Lerp(maxDamage, minDamage, distance / ExplosionRadius);
+
                 mediator.NetworkInput.DealDamage((int)damage, player);
                 hitCharacters.Add(player);
             }
@@ -93,4 +94,6 @@ public class Bomb : MonoBehaviour
         yield return new WaitForSeconds(delay);
         Explode();
     }
+
+    public string DamageRangeString => $"{maxDamage} - {minDamage}";
 }

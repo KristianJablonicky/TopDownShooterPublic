@@ -3,22 +3,21 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "CursePostMortem", menuName = "Abilities/PostMortem/Curse")]
 public class CursePostMortem : AbilityPostMortem
 {
+    public override AbilityHotKeys KeyCode { get; protected set; } = AbilityHotKeys.Utility;
+
     protected override void OnKeyDownSecure(Vector2 position) { }
 
     protected override void OnKeyUpSecure(Vector2 position)
     {
-        if (owner.AbilityRPCs is BabaYagaRPCs rcps)
+        TryInvokeRPC<BabaYagaRPCs>(rpcs =>
         {
-            rcps.RequestCurseRPC(owner.PlayerId);
+            rpcs.RequestCurseRPC(owner.PlayerId);
             OnCast();
-        }
-        else
-        {
-            Debug.LogError("Wrong RPC type");
-        }
+        });
     }
 
-    protected override void ThirdEyeClosed() { }
-
-    protected override void ThirdEyeOpen() { }
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"";
+    }
 }

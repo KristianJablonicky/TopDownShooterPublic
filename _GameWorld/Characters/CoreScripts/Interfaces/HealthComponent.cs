@@ -5,6 +5,7 @@ public class HealthComponent : MonoBehaviour, IResettable
 {
     public CharacterMediator mediator;
     [field: SerializeField] public int MaxHealth { get; private set; } = 100;
+    [field: SerializeField] public bool NPC { get; private set; } = false;
     public ObservableValue<int> CurrentHealth { get; private set; }
 
     public event Action<int, CharacterMediator> DamageTaken;
@@ -40,6 +41,13 @@ public class HealthComponent : MonoBehaviour, IResettable
         {
             mediator.Die(killer);
         }
+    }
+
+    public void AdjustMaxHealth(int adjustment, bool adjustCurrentHealth)
+    {
+        MaxHealth += adjustment;
+        if (adjustCurrentHealth) CurrentHealth.Adjust(adjustment);
+        else CurrentHealth.Adjust(0); // Notify observers of max health change
     }
 
     public void Reset()

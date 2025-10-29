@@ -16,7 +16,6 @@ public class AbilityUIUpdater : Hoverable
     [SerializeField] private GameObject coolDownGrayedOut;
     [SerializeField] private TMP_Text cooldownText, abilityDescription;
 
-
     private Ability ability;
     private ActiveAbility activeAbility;
 
@@ -35,6 +34,8 @@ public class AbilityUIUpdater : Hoverable
         }
         abilityUI.Init(ability, false);
         abilityDescription.text = abilityUI.Text;
+
+        ability.IconChanged += newIcon => abilityIcon.sprite = newIcon;
     }
 
     private Ability GetAbility(AbilityManager AbilityManager)

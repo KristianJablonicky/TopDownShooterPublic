@@ -48,7 +48,7 @@ public class TeamSelector : SingletonMonoBehaviour<TeamSelector>
 
         for (int i = 0; i < 2; i++)
         {
-            foreach (var player in manager.Players.Values)
+            foreach (var player in manager.Mediators.Values)
             {
                 if (teamAreas[i].bounds.Contains(player.GetPosition()))
                 {
@@ -64,7 +64,7 @@ public class TeamSelector : SingletonMonoBehaviour<TeamSelector>
         List<ulong> orange, cyan;
         orange = new();
         cyan = new();
-        foreach (var character in characterManager.Players.Values)
+        foreach (var character in characterManager.Mediators.Values)
         {
             if (character.GetPosition().x < 0)
             {

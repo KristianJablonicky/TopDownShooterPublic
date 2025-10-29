@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
@@ -7,6 +8,32 @@ public class BabaYagaRPCs : AbilityRPCs
 {
     [SerializeField] private Curse curse;
     [SerializeField] private Hex hex;
+
+    [Rpc(SendTo.Server)]
+    public void RequestSweepCurseRPC(ulong invokerId)
+    {
+        var targetsHit = new List<CharacterMediator>();
+        var manager = CharacterManager.Instance;
+        var caster = manager.Mediators[invokerId];
+
+        ClientSweepRPC(invokerId);
+
+        foreach (var character in manager.Mediators.Values)
+        {
+            if (character == caster) continue;
+
+            if (!caster.InRange(character, curse.Range)) continue;
+            if (!caster.LookingAt(character, curse.ArcDegrees)) continue;
+
+            targetsHit.Add(character);
+        }
+
+        if (targetsHit.Count == 0) return;
+
+        var ids = MediatorsToIds(targetsHit);
+        ClientCurseRPC(GetRpcParams(ids));
+    }
+
 
     [Rpc(SendTo.Server)]
     public void RequestCurseRPC(ulong invokerId)
@@ -18,7 +45,7 @@ public class BabaYagaRPCs : AbilityRPCs
         }
 
         var manager = CharacterManager.Instance;
-        var invoker = manager.Players[invokerId];
+        var invoker = manager.Mediators[invokerId];
         var opponents = manager.EnemiesOf(invoker);
 
         var opponentIds = opponents.Select(p => p.Mediator.PlayerId).ToArray();
@@ -59,6 +86,15 @@ public class BabaYagaRPCs : AbilityRPCs
         {
             mediator.PlayerVision.Reset();
         }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void ClientSweepRPC(ulong casterId)
+    {
+        var caster = CharacterManager.Instance.Mediators[casterId];
+        var dust = Instantiate(curse.SweepGO, caster.GetPosition(),
+            caster.RotationController.transform.rotation);
+        dust.transform.localScale = Vector2.one * curse.Range;
     }
 
     [Rpc(SendTo.Server)]

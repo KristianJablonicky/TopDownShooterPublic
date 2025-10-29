@@ -1,16 +1,18 @@
+using System;
 using System.Text;
 using TMPro;
 using UnityEngine;
 using static DataKeyInt;
 public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
 {
+    [SerializeField] private float fadeInDuration = 0.25f;
     [SerializeField] private PlayerEntryUI[] playerEntries;
     [SerializeField] private TMP_Text[] binders;
     [SerializeField] private CanvasGroup canvasGroup;
 
     private CharacterManager manager;
     private GameStateManager gameState;
-
+    private Coroutine fadeCoroutine;
     public void ChangeState(bool visible)
     {
         if (visible) Show();
@@ -20,29 +22,45 @@ public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
     public void Show()
     {
         if (!gameState.GameInProgress) return;
-
         gameObject.SetActive(true);
-        canvasGroup.alpha = 1f;
         UpdateTexts();
+        Fade(1f, null);
     }
     public void Hide()
     {
-        canvasGroup.alpha = 0f;
-        gameObject.SetActive(false);
+        if (!gameState.GameInProgress) return;
+        Fade(0f, () => gameObject.SetActive(false));
     }
+
+
+    private void Fade(float targetAlpha, Action actionOnExit)
+    {
+        if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+
+        fadeCoroutine = StartCoroutine(
+            Tweener.TweenCoroutine(this, canvasGroup.alpha, targetAlpha, fadeInDuration, TweenStyle.quadraticEaseOut,
+                value => canvasGroup.alpha = value, actionOnExit
+            )
+        );
+    }
+
     private void Start()
     {
         manager = CharacterManager.Instance;
         gameState = GameStateManager.Instance;
-        Hide();
+
+        canvasGroup.alpha = 0f;
+        gameObject.SetActive(false);
     }
+
 
     private void UpdateTexts()
     {
         for (int teamNumber = 0; teamNumber < 2; teamNumber++)
         {
             var team = manager.Teams[(Team)teamNumber];
-            binders[teamNumber].text = team.Wins.ToString();
+            binders[teamNumber].text = $"{team.Wins} (A:{team.attackerWins})";
+            //binders[teamNumber].text = team.Wins.ToString();
 
             for (int playerNumber = 0; playerNumber < team.Players.Length; playerNumber++)
             {
@@ -91,7 +109,7 @@ public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
         var localPlayer = manager.LocalPlayer;
         
         storage.Increment(Wins, localPlayer.Team.Wins);
-        storage.Increment(Losses, localPlayer.Team.GetTheEnemyTeamData().Wins);
+        storage.Increment(Losses, localPlayer.Team.EnemyTeamData.Wins);
         storage.Increment(Kills, localPlayer.PlayerScore.Kills);
         storage.Increment(Deaths, localPlayer.PlayerScore.Deaths);
     }

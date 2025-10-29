@@ -2,7 +2,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "Hex", menuName = "Abilities/Passive/Hex")]
-public class Hex : Ability
+public class Hex : PassiveAbility
 {
 
     [field: SerializeField] public float AmmoDrainPercentage { get; private set; } = 0.1f;
@@ -14,15 +14,13 @@ public class Hex : Ability
         owner.HealthComponent.DamageTaken += OnDamageTaken;
     }
 
+
     private void OnDamageTaken(int damage, CharacterMediator attacker)
     {
-        if (owner.AbilityRPCs is BabaYagaRPCs rpcs)
-        {
-            rpcs.RequestHexRPC(attacker.PlayerId);
-        }
-        else
-        {
-            Debug.LogError("Wrong rpcs assigned.");
-        }
+        TryInvokeRPC<BabaYagaRPCs>(rpcs => rpcs.RequestHexRPC(attacker.PlayerId));
+    }
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"Magazine ammo drain: {Mathf.RoundToInt(AmmoDrainPercentage * 100f)}%";
     }
 }

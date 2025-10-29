@@ -36,8 +36,8 @@ public abstract class AbilityPostMortem : ActiveAbility
         openedThirdEye = false;
     }
 
-    protected abstract void ThirdEyeOpen();
-    protected abstract void ThirdEyeClosed();
+    protected virtual void ThirdEyeOpen() { }
+    protected virtual void ThirdEyeClosed() { }
     protected override void OnKeyDown(Vector2 position)
     {
         if (openedThirdEye)
@@ -56,4 +56,6 @@ public abstract class AbilityPostMortem : ActiveAbility
 
     protected abstract void OnKeyDownSecure(Vector2 position);
     protected abstract void OnKeyUpSecure(Vector2 position);
+
+    public override AbilityType GetAbilityType() => AbilityType.PostMortem;
 }

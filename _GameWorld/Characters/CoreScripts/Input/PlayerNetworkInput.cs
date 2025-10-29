@@ -13,19 +13,24 @@ public class PlayerNetworkInput : NetworkBehaviour
 
     [SerializeField] private GameObject ping;
 
+    [SerializeField] private bool NPC = false;
+
     public NetworkVariable<FixedString32Bytes> PlayerName = new(writePerm: NetworkVariableWritePermission.Owner);
 
     public static event Action<CharacterMediator> OwnerSpawned;
 
     public override void OnNetworkSpawn()
     {
+        if (!NPC) SetUpPlayer();
+        else SetUpNPC();
+    }
+
+    private void SetUpPlayer()
+    {
+        mediator.SetID(OwnerClientId);
         if (!IsOwner)
         {
             inputHandler.enabled = false;
-            PlayerName.OnValueChanged += (oldName, newName) =>
-            {
-                Debug.Log($"Player {OwnerClientId} is now named {newName}");
-            };
         }
         else
         {
@@ -38,12 +43,23 @@ public class PlayerNetworkInput : NetworkBehaviour
 
         CharacterManager.Instance.RegisterCharacter(mediator);
     }
+
+    private static ulong botOffset = 0;
+    private void SetUpNPC()
+    {
+        mediator.SetID(Constants.NPCID + botOffset);
+        botOffset++;
+        CharacterManager.Instance.RegisterCharacter(mediator);
+    }
+
     #region damage
 
     public void DealDamage(int damage, CharacterMediator targetMediator)
     {
         if (!targetMediator.HealthComponent.CanTakeDamage) return;
-        DealDamageRequestRpc(damage, targetMediator.PlayerId);
+
+        if (!targetMediator.IsNPC) DealDamageRequestRpc(damage, targetMediator.PlayerId);
+        else targetMediator.HealthComponent.TakeDamage(damage, mediator);
     }
     public void TakeLethalDamage()
     {
@@ -60,19 +76,23 @@ public class PlayerNetworkInput : NetworkBehaviour
     [Rpc(SendTo.Everyone)]
     private void NotifyDealDamageRpc(int damage, ulong targetID, RpcParams rpcParams = default)
     {
-        var player = CharacterManager.Instance.Players[targetID];
+        var player = CharacterManager.Instance.Mediators[targetID];
         //Debug.Log($"dealing {damage} damage to {targetID}");
         player.HealthComponent.TakeDamage(damage, mediator);
     }
     [Rpc(SendTo.Server)]
-    public void RequestHealRpc(int healAmount)
+    public void RequestHealRpc(int healAmount, bool overHeal)
     {
-        NotifyHealRpc(healAmount);
+        if (mediator.IsAlive)
+        {
+            NotifyHealRpc(healAmount, overHeal);
+        }
     }
     [Rpc(SendTo.Everyone)]
-    private void NotifyHealRpc(int healAmount)
+    private void NotifyHealRpc(int healAmount, bool overHeal)
     {
-        mediator.HealthComponent.CurrentHealth.Adjust(healAmount);
+        int? ceiling = overHeal ? null : mediator.HealthComponent.MaxHealth;
+        mediator.HealthComponent.CurrentHealth.Adjust(healAmount, ceiling: ceiling);
     }
     #endregion
 
@@ -190,7 +210,7 @@ public class PlayerNetworkInput : NetworkBehaviour
     [Rpc(SendTo.Everyone)]
     public void ShowGunshotVisualsRPC(ulong playerId)
     {
-        var player = CharacterManager.Instance.Players[playerId];
+        var player = CharacterManager.Instance.Mediators[playerId];
         player.Gun.ShowShotVisuals();
     }
 
@@ -220,12 +240,12 @@ public class PlayerNetworkInput : NetworkBehaviour
     #endregion
 
     #region misc
-    [Rpc(SendTo.Server, RequireOwnership = true)]
+    [Rpc(SendTo.Server)]
     public void RequestPingRpc(Vector2 pingPos, ulong playerId)
     {
         if (!GameStateManager.Instance.GameInProgress) return;
 
-        var mediator = CharacterManager.Instance.Players[playerId];
+        var mediator = CharacterManager.Instance.Mediators[playerId];
         var teamMateIds = mediator.AbilityRPCs.GetTeamMateIds();
         ClientPingRpc(pingPos, GetRpcParams(teamMateIds));
     }
@@ -240,6 +260,8 @@ public class PlayerNetworkInput : NetworkBehaviour
     public override void OnDestroy()
     {
         base.OnDestroy();
+        
+        if (!IsOwner) return;
         OwnerSpawned = null;
     }
 

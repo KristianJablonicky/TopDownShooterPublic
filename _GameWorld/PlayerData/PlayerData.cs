@@ -14,6 +14,8 @@ public class PlayerData
         if (name == string.Empty) name = "Player" + mediator.PlayerId.ToString();
         Name = name;
     }
+
+    public PlayerData GetTeamMate() => Team.GetTeamMate(this);
 }
 
 public enum Team

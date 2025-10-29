@@ -2,13 +2,11 @@ using UnityEngine;
 
 public class GunTipVisuals : MonoBehaviour
 {
+    [SerializeField] private CharacterMediator characterMediator;
     [SerializeField] private GameObject[] muzzleFlashes;
     [field: SerializeField] public GameObject HeadShotVisuals { get; private set; }
 
-    [SerializeField] private float lightIntensity;
-    [SerializeField] private float lightIntensityRange;
-
-    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private SoundPlayer soundPlayer;
     private GunConfig gunConfig;
     public void SetConfig(GunConfig config) => gunConfig = config;
 
@@ -18,9 +16,7 @@ public class GunTipVisuals : MonoBehaviour
             muzzleFlashes[Random.Range(0, muzzleFlashes.Length)],
             transform
         );
-        var clip = gunConfig.shootSounds[Random.Range(0, gunConfig.shootSounds.Length)];
-        audioSource.pitch = Random.Range(0.95f, 1.05f);
-        audioSource.PlayOneShot(clip);
+        soundPlayer.RequestPlaySound(characterMediator.GetTransform(), gunConfig.shootSounds, true);
     }
 
     public void ShowHit(Vector2 position)

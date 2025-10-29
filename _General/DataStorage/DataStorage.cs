@@ -44,31 +44,78 @@ public class DataStorage
     public void SetInt(DataKeyInt key, int value)
     {
         string sKey = key.ToString();
-        PlayerPrefs.SetInt(sKey, value);
-        if (!intData.ContainsKey(sKey))
+        SetInt(sKey, value);
+    }
+    private void SetInt(string key, int value)
+    {
+        PlayerPrefs.SetInt(key, value);
+        if (!intData.ContainsKey(key))
         {
-            intData.Add(sKey, value);
+            intData.Add(key, value);
         }
         else
         {
-            intData[sKey] = value;
+            intData[key] = value;
         }
     }
+
+    /// <summary>
+    /// Set an int value specific to a hero. If hero is null, use the currently picked hero.
+    /// </summary>
+    public void SetIntHeroSpecific(DataKeyInt key, HeroDatabase? hero, int value)
+    {
+        if (!hero.HasValue)
+        {
+            hero = (HeroDatabase)GetInt(DataKeyInt.PickedHero);
+        }
+        SetInt(GetHeroSpecificKey(key, hero.Value), value);
+    }
+
     public int GetInt(DataKeyInt key)
     {
-        string sKey = key.ToString();
-        if (intData.ContainsKey(sKey))
+        var sKey = key.ToString();
+        return GetInt(sKey);
+    }
+    private int GetInt(string key)
+    {
+        if (intData.ContainsKey(key))
         {
-            return intData[sKey];
+            return intData[key];
         }
 
-        intData.Add(sKey, PlayerPrefs.GetInt(sKey, 0));
-        return intData[sKey];
+        intData.Add(key, PlayerPrefs.GetInt(key, 0));
+        return intData[key];
+    }
+
+    /// <summary>
+    /// Get an int value specific to a hero. If hero is null, use the currently picked hero.
+    /// </summary>
+    public int GetIntHeroSpecific(DataKeyInt key, HeroDatabase? hero)
+    {
+        if (!hero.HasValue)
+        {
+            hero = (HeroDatabase)GetInt(DataKeyInt.PickedHero);
+        }
+        return GetInt(GetHeroSpecificKey(key, hero.Value));
     }
 
     public void Increment(DataKeyInt key, int increaseAmount)
     {
         SetInt(key, GetInt(key) + increaseAmount);
+    }
+
+    public GameMode GetGameMode() => (GameMode)GetInt(DataKeyInt.GameMode);
+
+    private string GetHeroSpecificKey(DataKeyInt key, HeroDatabase hero)
+    {
+        return $"{key}_{(int)hero}";
+    }
+
+    public static bool IsSinglePlayer() => Instance.GetGameMode() == GameMode.SinglePlayer;
+
+    public static float GetVolume()
+    {
+        return Instance.GetInt(DataKeyInt.SettingsVolume) / 100f * Constants.maxVolume;
     }
 }
 
@@ -80,8 +127,18 @@ public enum DataKeyString
 public enum DataKeyInt
 {
     PickedHero,
+    GameMode,
     Wins,
     Losses,
     Kills,
-    Deaths
+    Deaths,
+    HighScore,
+    SettingsVolume,
+    SettingsRelativeSounds
+}
+
+public enum GameMode
+{
+    MultiPlayer,
+    SinglePlayer
 }

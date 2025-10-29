@@ -2,10 +2,15 @@ using UnityEngine;
 
 public abstract class ActiveAbility : Ability, IUpdatable
 {
-    [field: SerializeField] public float CoolDown { get; private set; }
-    [field: SerializeField] public AbilityHotKeys KeyCode { get; private set; } = AbilityHotKeys.Movement;
+    protected ChannelingManager channelingManager;
+    [field: SerializeField] public float CoolDown { get; set; }
 
+
+    private GameObject rangeIndicator;
     public ObservableValue<float> CurrentCoolDown { get; private set; }
+
+    public abstract AbilityHotKeys KeyCode { get; protected set; }
+    
     public virtual void IUpdate(float dt)
     {
         if (CurrentCoolDown != 0f)
@@ -17,13 +22,25 @@ public abstract class ActiveAbility : Ability, IUpdatable
     protected override void AbstractReset()
     {
         CurrentCoolDown?.Set(0f);
+
+        if (rangeIndicator.activeSelf)
+        {
+            HideRangeIndicator();
+        }
+
         OnReset();
     }
+
+    protected override string _GetAbilitySuffix() => $"Cooldown: {CoolDown}";
 
     // optional subclass cleanup
     protected virtual void OnReset() { }
 
-    protected override void SetUp() => CurrentCoolDown = new(0f);
+    protected override void SetUp()
+    {
+        CurrentCoolDown = new(0f);
+        channelingManager = owner.Gun.ChannelingManager;
+    }
 
     public void SetCoolDown(float newCoolDown) => CurrentCoolDown.Set(newCoolDown);
 
@@ -46,6 +63,40 @@ public abstract class ActiveAbility : Ability, IUpdatable
     protected abstract void OnKeyUp(Vector2 position);
     protected abstract void OnKeyDown(Vector2 position);
 
+    public void SetRangeIndicatorReference(GameObject rangeIndicator) => this.rangeIndicator = rangeIndicator;
+    protected void ShowRangeIndicator(float range)
+    {
+        rangeIndicator.SetActive(true);
+        rangeIndicator.transform.localScale = Vector2.one * range;
+    }
+    protected void HideRangeIndicator() => rangeIndicator.SetActive(false);
+    protected Vector2 GetDestination(Vector2 mousePosition, float range, bool worksAcrossFloors,
+        CharacterMediator positionRelativeTo = null)
+    {
+        if (positionRelativeTo == null)
+        {
+            positionRelativeTo = owner;
+        }
+        var yOffset = FloorUtilities.GetYOffset(owner.InputHandler.AimDirection, positionRelativeTo.CurrentFloor);
+        var characterPosition = positionRelativeTo.GetPosition();
+        var distance = Vector2.Distance(characterPosition, mousePosition);
+        
+        // clamp mouse position if aiming too far
+        if (distance > range)
+        {
+            mousePosition = characterPosition + ((mousePosition - characterPosition).normalized * range);
+        }
+
+        if (worksAcrossFloors && yOffset.HasValue)
+        {
+            return new(mousePosition.x, mousePosition.y + yOffset.Value);
+        }
+        else
+        {
+            return mousePosition;
+        }
+    }
+
     /*
     [Rpc(SendTo.Server)]
     public void RequestCastRPC()
@@ -60,6 +111,20 @@ public abstract class ActiveAbility : Ability, IUpdatable
     }
     */
 }
+
+public abstract class MovementAbility : ActiveAbility
+{
+    public override AbilityHotKeys KeyCode { get; protected set; } = AbilityHotKeys.Movement;
+    public override AbilityType GetAbilityType() => AbilityType.Movement;
+}
+
+public abstract class UtilityAbility : ActiveAbility
+{
+    public override AbilityHotKeys KeyCode { get; protected set; } = AbilityHotKeys.Utility;
+    public override AbilityType GetAbilityType() => AbilityType.Utility;
+}
+
+
 
 public enum AbilityHotKeys
 {

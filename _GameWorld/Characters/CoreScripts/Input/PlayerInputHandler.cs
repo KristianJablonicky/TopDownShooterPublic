@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Net.NetworkInformation;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +9,7 @@ public class PlayerInputHandler : MonoBehaviour
 {
     private RawImage rawImage;
     private Camera uiCamera;
-    private Camera playerCamera;
+    private Camera playerCamera, teamMateCamera;
 
     [SerializeField] private PlayerNetworkInput networkInput;
     [SerializeField] private RenderTexture renderTexture;
@@ -23,10 +22,11 @@ public class PlayerInputHandler : MonoBehaviour
 
     private AbilityManager abilityManager;
 
-    private AimDirection aimDirection = Straight;
+    public AimDirection AimDirection { get; private set; } = Straight;
 
     public event Action<bool> AimedDownSights, ScrolledWheelUp;
     public event Action<AimDirection> AimDirectionChanged;
+    public event Action EscapePressed;
     private bool aimingDownSights = false;
     private bool ADSSetToToggle;
 
@@ -58,6 +58,7 @@ public class PlayerInputHandler : MonoBehaviour
         uiCamera = ui;
         this.rawImage = rawImage;
     }
+    public void SetTeamMateCamera(Camera teamMateCamera) => this.teamMateCamera = teamMateCamera;
 
     private void Update()
     {
@@ -70,13 +71,16 @@ public class PlayerInputHandler : MonoBehaviour
         UpdateUniqueActions();
         UpdateAbilities();
 
+#if UNITY_EDITOR
         UpdateDebug();
+#endif
 
         UpdateAlwaysAvailable();
     }
 
     public void UpdateInputPostMortem()
     {
+        UpdateMousePostMortem();
         UpdateAbility(abilityManager.AbilityPostMortem, true);
         UpdateAlwaysAvailable();
     }
@@ -116,20 +120,28 @@ public class PlayerInputHandler : MonoBehaviour
     private void UpdateMouse()
     {
         var newPosition = GetCursorPosition();
-        gun.ApplyRecoilMouseMovement((newPosition - CursorPosition).magnitude * cursorAccuracyMultiplier);
+        var magnitude = (newPosition - CursorPosition).magnitude;
+        
+        // only apply cursor movement inaccuracy if the player hasn't moved across floors.
+        if (magnitude < Constants.floorYOffset * 0.9f)
+        {
+            gun.ApplyRecoilMouseMovement(magnitude * cursorAccuracyMultiplier);
+        }
         CursorPosition = newPosition;
 
         rotationController.SetCursorPosition(CursorPosition);
-
-        if (Input.GetMouseButtonDown(0))
+        
+        if (!EscapeMenuManager.MenuOpen)
         {
-            Shoot(CursorPosition, true);
+            if (Input.GetMouseButtonDown(0))
+            {
+                Shoot(CursorPosition, true);
+            }
+            else if (Input.GetMouseButton(0))
+            {
+                Shoot(CursorPosition, false);
+            }
         }
-        else if (Input.GetMouseButton(0))
-        {
-            Shoot(CursorPosition, false);
-        }
-
 
         if (ADSSetToToggle)
         {
@@ -162,6 +174,25 @@ public class PlayerInputHandler : MonoBehaviour
         }
     }
 
+    private void UpdateMousePostMortem()
+    {
+        var scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (scroll > 0f)
+        {
+            HandleScrolling(false, true);
+        }
+        else if (scroll < 0f)
+        {
+            HandleScrolling(false, false);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Mouse2))
+        {
+            SetAimDirection(Straight);
+        }
+    }
+
+
     private void HandleScrolling(bool heldControl, bool scrolledUp)
     {
         if (heldControl)
@@ -171,16 +202,16 @@ public class PlayerInputHandler : MonoBehaviour
         else
         {
             int change = scrolledUp ? 1 : -1;
-            var newAimDirection = Mathf.Clamp((int)aimDirection + change, 0, 2);
+            var newAimDirection = Mathf.Clamp((int)AimDirection + change, 0, 2);
             SetAimDirection((AimDirection)newAimDirection);
         }
     }
 
     private void SetAimDirection(AimDirection newAimDirection)
     {
-        if (aimDirection == newAimDirection) return;
+        if (AimDirection == newAimDirection) return;
 
-        aimDirection = newAimDirection;
+        AimDirection = newAimDirection;
         AimDirectionChanged?.Invoke(newAimDirection);
     }
     public Vector2 GetCursorPositionNormalized()
@@ -190,7 +221,7 @@ public class PlayerInputHandler : MonoBehaviour
             (Input.mousePosition.y / Screen.height - 0.5f) * 2f
         ).normalized;
     }
-    private Vector2 GetCursorPosition()
+    private Vector2 GetCursorPosition(Camera camera = null)
     {
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rawImage.rectTransform,
@@ -214,7 +245,12 @@ public class PlayerInputHandler : MonoBehaviour
         var py = v * renderTexture.height;
 
         // Now map into player camera space
-        return playerCamera.ScreenToWorldPoint(new Vector3(px, py, playerCamera.nearClipPlane));
+        if (camera == null)
+        {
+            camera = playerCamera;
+        }
+
+        return camera.ScreenToWorldPoint(new Vector3(px, py, playerCamera.nearClipPlane));
     }
     private void Shoot(Vector2 cursorPos, bool firstPress)
     {
@@ -224,11 +260,10 @@ public class PlayerInputHandler : MonoBehaviour
         for (int i = 0; i < shotCount; i++)
         {
             var actualShootDirection = gun.GetShootDirection(cursorPos);
+            var canHeadshot = gun.CanHeadShot(firstPress, AimDirection);
             gun.ApplyRecoil();
 
-            var canHeadshot = gun.CanHeadShot(firstPress, aimDirection);
-
-            networkInput.RequestShootRpc(cursorPos, actualShootDirection, canHeadshot, aimDirection);
+            networkInput.RequestShootRpc(cursorPos, actualShootDirection, canHeadshot, AimDirection);
         }
         networkInput.ShowGunshotVisualsRPC(mediator.PlayerId);
     }
@@ -261,8 +296,12 @@ public class PlayerInputHandler : MonoBehaviour
     }
     private void UpdateAbility(ActiveAbility ability, bool postMortem)
     {
+        if (postMortem) CursorPosition = GetCursorPosition(teamMateCamera);
         if (!ability.ReadyToCast()) return;
-        if (postMortem) CursorPosition = GetCursorPositionNormalized();
+
+        //if (postMortem) CursorPosition = GetCursorPositionNormalized();
+
+
         ChangeOnHoldState((KeyCode)ability.KeyCode, (pressed) => ability.OnKeyInteraction(pressed, CursorPosition));
     }
 
@@ -273,14 +312,21 @@ public class PlayerInputHandler : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            NetworkManager.Singleton.Shutdown();
+            EscapePressed?.Invoke();
         }
     }
 
     private void UpdateDebug()
     {
         if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(10, mediator);
-        if (Input.GetKeyDown(KeyCode.F)) mediator.PlayerVision.SetVisionRangeProportional(0.5f);
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+
+            new Modifier(mediator,
+                new ObjectiveVitalityModifier(), 1f, 2, null);
+            new Modifier(mediator,
+                new ObjectiveCoolDownModifier(), 1f, 2, null);
+        }
     }
 }
 

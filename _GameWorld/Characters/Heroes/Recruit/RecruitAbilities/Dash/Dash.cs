@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "Dash", menuName = "Abilities/Movement/Dash")]
-public class Dash : ActiveAbility
+public class Dash : MovementAbility
 {
     [SerializeField] private float appliedVelocity = 25f;
 
@@ -15,5 +15,10 @@ public class Dash : ActiveAbility
         owner.MovementController.ApplyForceInWalkingDirection(appliedVelocity);
 
         OnCast();
+    }
+
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"Velocity: {appliedVelocity}";
     }
 }

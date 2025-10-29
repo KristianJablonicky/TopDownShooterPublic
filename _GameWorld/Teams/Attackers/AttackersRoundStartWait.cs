@@ -21,15 +21,8 @@ public class AttackersRoundStartWait : MonoBehaviour
     {
         if (localPlayer.role == Role.Attacker)
         {
-            StartCoroutine(RoundStartWait());
+            localPlayer.AbilityManager.DisableAbilities(roundStartWait);
+            localPlayer.Gun.ChannelingManager.StartChannelingStandingStill(roundStartWait, null, localPlayer, false);
         }
-    }
-
-    private IEnumerator RoundStartWait()
-    {
-        localPlayer.MovementController.MovementEnabled = false;
-        localPlayer.AbilityManager.DisableAbilities(roundStartWait);
-        yield return new WaitForSeconds(roundStartWait);
-        localPlayer.MovementController.MovementEnabled = true;
     }
 }

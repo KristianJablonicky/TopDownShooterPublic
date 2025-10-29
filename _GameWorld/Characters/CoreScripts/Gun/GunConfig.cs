@@ -3,6 +3,8 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "GunConfig", menuName = "Guns/GunConfig")]
 public class GunConfig : ScriptableObject
 {
+    [field: SerializeField] public string GunName {  get; private set; }
+
     [Header("General")]
     public bool isAutomatic = true;
 
@@ -14,7 +16,7 @@ public class GunConfig : ScriptableObject
     public float reloadDuration = 3f;
 
     [Header("Accuracy")]
-    public float maxRecoilDiameter = 3f;
+    [Range(0f, 45f)] public float maxRecoilAngle = 35f;
     [Range(0f, 1f)] public float baseRecoilPerShot = 0.1f;
     [Range(0f, 1f)] public float recoilPerShotMultiplier = 0.2f;
     public float recoilRecoveryPerSecond = 1f;
@@ -22,7 +24,7 @@ public class GunConfig : ScriptableObject
     [Range(0f, 1f)] public float headshotAccuracyRequirement = 0.2f;
 
     [Header("Miscellaneous")]
-    public float bulletRange = 12;
+    public float bulletRange = 10;
 
     [Header("Visuals")]
     public AudioClip[] shootSounds;

@@ -36,6 +36,12 @@ public class SimpleMatchmaking : MonoBehaviour
     
     private async void Awake()
     {
+        if (DataStorage.Instance.GetGameMode() != GameMode.MultiPlayer)
+        {
+            HideJoiningOverlay(true);
+            return;
+        }
+
 #if UNITY_EDITOR
         HideJoiningOverlay(true);
         var tags = CurrentPlayer.ReadOnlyTags();

@@ -4,20 +4,28 @@ using UnityEngine;
 public class CameraController : MonoBehaviour
 {
     protected GameObject followedGO;
+    [field: SerializeField] public Camera Camera { get; protected set; }
     [SerializeField] protected float maxDistanceDelta = 10f;
     [SerializeField] protected GameObject renderUIImage;
     [SerializeField] private bool snappyMovement;
     protected Func<(float, float)> updateAction;
-    protected const float zOffset = -10f;
+    protected const float zOffset = -1f;
 
     protected virtual void Awake()
     {
         enabled = false;
     }
-    public void InitialSetTarget(CharacterMediator mediator)
+    public void InitialSetTarget(CharacterMediator mediator, bool teamMate)
     {
         enabled = true;
         renderUIImage.SetActive(true);
+
+        if (teamMate)
+        {
+            var localPlayer = CharacterManager.Instance.LocalPlayer.Mediator;
+            localPlayer.Died += (_) => { renderUIImage.SetActive(false); };
+            localPlayer.Respawned += (_) => { renderUIImage.SetActive(true); };
+        }
 
         if (snappyMovement) updateAction = SnapPosition;
         else updateAction = UpdatePosition;
@@ -25,7 +33,7 @@ public class CameraController : MonoBehaviour
         followedGO = mediator.MovementController.gameObject;
         mediator.MovementController.PositionChanged += OnPositionChanged;
 
-        mediator.Disconnected += () => { enabled = false; };
+        //mediator.Disconnected += () => { enabled = false; };
     }
 
     private void OnPositionChanged(Vector2 newPos)

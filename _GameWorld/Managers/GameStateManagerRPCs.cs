@@ -9,8 +9,14 @@ public class GameStateManagerRPCs : NetworkBehaviour
     [Rpc(SendTo.Everyone)]
     public void RequestGameStartRPC(ulong[] sortedIDs)
     {
-        Debug.Log("All players picked a team " + sortedIDs);
         GameStateNotifications.Instance.ShowMessage("Starting soon...");
         characterManager.AllPlayersPickedATeam(sortedIDs);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    public void PickObjectiveRPC(uint objectiveId)
+    {
+        Debug.Log($"Objective {objectiveId} picked.");
+        DefenderObjectiveManager.Instance.ObjectivePicked(objectiveId);
     }
 }

@@ -6,13 +6,13 @@ using UnityEngine.UI;
 using static DataKeyInt;
 using static DataKeyString;
 
-public class MainMenuManager : MonoBehaviour
+public class MainMenuManager : SingletonMonoBehaviour<MainMenuManager>
 {
-    [SerializeField] private TMP_Text career, lastMatchResults, fullScreenText;
+    [SerializeField] private TMP_Text career, lastMatchResults, fullScreenText, version;
     [SerializeField] private TMP_InputField playerNameInput;
-    [SerializeField] private Button startButton, quitButton, fullScreenButton;
+    [SerializeField] private Button findAMatchButton, trainingButton, quitButton, fullScreenButton;
 
-    private void Awake()
+    protected override void OverriddenAwake()
     {
         var storage = DataStorage.Instance;
 
@@ -21,6 +21,10 @@ public class MainMenuManager : MonoBehaviour
         if (storage.lastScoreBoardState != string.Empty && storage.lastScoreBoardState != null)
         {
             lastMatchResults.text = $"{storage.disconnectReason}\nLast Match Results:\n{storage.lastScoreBoardState}";
+        }
+        else if (storage.GetGameMode() == GameMode.SinglePlayer)
+        {
+            UpdateHighScore();
         }
         else if (storage.disconnectReason != null)
         {
@@ -33,9 +37,13 @@ public class MainMenuManager : MonoBehaviour
 
         playerNameInput.text = storage.GetString(Name);
 
-        startButton.onClick.AddListener(() =>
+        findAMatchButton.onClick.AddListener(() =>
         {
-            SceneManager.FindAMatch();
+            SceneManager.StartGameplay(GameMode.MultiPlayer);
+        });
+        trainingButton.onClick.AddListener(() =>
+        {
+            SceneManager.StartGameplay(GameMode.SinglePlayer);
         });
         quitButton.onClick.AddListener (() =>
         {
@@ -49,6 +57,8 @@ public class MainMenuManager : MonoBehaviour
 
 
         fullScreenText.text = Screen.fullScreen ? "Windowed" : "Full Screen";
+
+        version.text = $"Version: {Application.version}";
     }
 
     private string GetCareerText(DataStorage storage)
@@ -60,6 +70,13 @@ public class MainMenuManager : MonoBehaviour
         sb.AppendLine($"Kills: {storage.GetInt(Kills)}");
         sb.AppendLine($"Deaths: {storage.GetInt(Deaths)}");
         return sb.ToString();
+    }
+
+    public void UpdateHighScore()
+    {
+        var storage = DataStorage.Instance;
+        var highScore = storage.GetIntHeroSpecific(HighScore, null);
+        lastMatchResults.text = $"Training HighScore: {highScore}";
     }
 
     private void OnDestroy()

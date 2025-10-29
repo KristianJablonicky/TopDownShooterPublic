@@ -35,8 +35,6 @@ public class NetworkHeroSpawner : MonoBehaviour
         var data = request.Payload;
         var prefabIndex = data.Length > 0 ? data[0] : 0;
 
-        Debug.Log($"data = {request.Payload}; len = {data.Length}; {data[0]}");
-
         var prefabList = NetworkManager.Singleton.NetworkConfig.Prefabs.Prefabs;
 
         if (prefabIndex < 0 || prefabIndex >= prefabList.Count)

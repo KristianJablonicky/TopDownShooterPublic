@@ -11,23 +11,24 @@ public class CharacterToolkit : ScriptableObject
     [field: FormerlySerializedAs("heroDescription")]
     [field: SerializeField, TextArea] public string HeroDescription { get; private set; }
 
-    [SerializeField] private ActiveAbility movementAbility;
-    [SerializeField] private ActiveAbility utilityAbility;
-    [SerializeField] private Ability passiveAbility;
+    [SerializeField] private MovementAbility movementAbility;
+    [SerializeField] private UtilityAbility utilityAbility;
+    [SerializeField] private PassiveAbility passiveAbility;
     [SerializeField] private AbilityPostMortem abilityPostMortem;
+    [field: SerializeField] public GunConfig GunConfig { get; private set; }
 
-    public (ActiveAbility movementAbility,
-        ActiveAbility utilityAbility,
-        Ability passiveAbility,
+    public (MovementAbility movementAbility,
+        UtilityAbility utilityAbility,
+        PassiveAbility passiveAbility,
         AbilityPostMortem abilityPostMortem)
         CreateAbilities(
         CharacterMediator mediator)
     {
         return
         (
-            (ActiveAbility)movementAbility.Factory(mediator),
-            (ActiveAbility)utilityAbility.Factory(mediator),
-            passiveAbility.Factory(mediator),
+            (MovementAbility)movementAbility.Factory(mediator),
+            (UtilityAbility)utilityAbility.Factory(mediator),
+            (PassiveAbility)passiveAbility.Factory(mediator),
             (AbilityPostMortem)abilityPostMortem.Factory(mediator)
         );
     }
@@ -43,11 +44,18 @@ public class CharacterToolkit : ScriptableObject
             _ => null,
         };
     }
+
+    public string GetGunDescription()
+    {
+        return $"<b>{GunConfig.GunName}</b>\n{GunConfig.damage} damage\n{GunConfig.headshotDamage} HS damage\n{GunConfig.capacity} capacity\n{GunConfig.RPM} RPM\n{GunConfig.reloadDuration}s reload time\nRange: {GunConfig.bulletRange}";
+    }
+
 }
 
 public enum HeroDatabase
 {
     Recruit = 0,
     BabaYaga = 1,
-    Dracula = 2
+    Dracula = 2,
+    Djinn = 3
 }

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "FlyBroom", menuName = "Abilities/Movement/FlyBroom")]
-public class FlyBroom : ActiveAbility
+public class FlyBroom : MovementAbility
 {
     [SerializeField] private float duration = 2f;
     [SerializeField] private float movementForcePerSecond = 85f;
@@ -10,15 +10,14 @@ public class FlyBroom : ActiveAbility
     private bool heldDown = false;
     protected override void OnKeyDown(Vector2 position)
     {
-        if (owner.Gun.ChannelingManager.Channeling) return;
+        if (channelingManager.Channeling) return;
 
-        owner.Gun.ChannelingManager.Channel(startChannel, StartFlight);
+        channelingManager.StartChannelingStandingStill(startChannel, StartFlight, owner, false);
     }
     private void StartFlight()
     {
         heldDown = true;
-        owner.Gun.ChannelingManager.Channel(duration, () => OnKeyUp(Vector2.zero));
-        owner.MovementController.MovementEnabled = false;
+        channelingManager.StartChannelingStandingStill(duration, () => OnKeyUp(Vector2.zero), owner, false);
     }
 
     public override void IUpdate(float dt)
@@ -37,14 +36,18 @@ public class FlyBroom : ActiveAbility
         if (!heldDown) return;
 
         heldDown = false;
-        owner.MovementController.MovementEnabled = true;
         OnCast();
-        owner.Gun.ChannelingManager.Channel(onFlightEndChannel, null);
+        owner.MovementController.MovementEnabled = true;
+        channelingManager.StartChanneling(onFlightEndChannel, null);
     }
 
     protected override void OnReset()
     {
-        base.OnReset();
         heldDown = false;
+    }
+
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"Duration: {duration}\nSpeed: {movementForcePerSecond}\nTotal channel time: {startChannel + onFlightEndChannel}";
     }
 }

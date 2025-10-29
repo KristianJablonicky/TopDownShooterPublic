@@ -9,6 +9,8 @@ public class Stairs : MonoBehaviour
     [SerializeField] private BoxCollider2D boxCollider;
     [SerializeField] private GameObject walkingRestrictions;
     [SerializeField] private Obstacle obstacleComponent;
+
+    private Vector2 yOffset;
     private void Awake()
     {
         spriteRenderer.sprite = stairSprites[(int)stairsLeadToFloor];
@@ -29,6 +31,7 @@ public class Stairs : MonoBehaviour
             obstacleComponent.gameObject.layer = 0;
             Destroy(obstacleComponent);
         }
+        yOffset = Vector2.up * FloorUtilities.GetYOffset(stairsLeadToFloor);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
@@ -37,9 +40,12 @@ public class Stairs : MonoBehaviour
         {
             var mediator = healthComponent.mediator;
             if (!mediator.IsLocalPlayer) return;
-            var yOffset = FloorUtilities.GetYOffset(stairsLeadToFloor);
+
             var movementController = healthComponent.mediator.MovementController;
-            movementController.SetPosition(healthComponent.mediator.GetPosition() + new Vector2(0f, yOffset));
+            movementController.SetPosition(
+                healthComponent.mediator.GetPosition() + yOffset,
+                stairsLeadToFloor
+            );
         }
     }
 

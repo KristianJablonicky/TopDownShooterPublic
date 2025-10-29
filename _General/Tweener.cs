@@ -29,12 +29,7 @@ public class Tweener : MonoBehaviour
         float initialDelay = 0f)
     {
         float timeElapsed = 0f;
-        Func<float, float, float, float> function = style switch
-        {
-            TweenStyle.linear => Linear,
-            TweenStyle.quadratic => Quadratic,
-            _ => Linear
-        };
+        var function = GetFunc(style);
 
         if (initialDelay > 0f)
         {
@@ -81,12 +76,7 @@ public class Tweener : MonoBehaviour
         float initialDelay = 0f)
     {
         float timeElapsed = 0f;
-        Func<float, float, float, float> function = style switch
-        {
-            TweenStyle.linear => Linear,
-            TweenStyle.quadratic => Quadratic,
-            _ => Linear
-        };
+        var function = GetFunc(style);
 
         if (initialDelay > 0f)
         {
@@ -117,10 +107,25 @@ public class Tweener : MonoBehaviour
 
     private static float Quadratic(float start, float end, float t)
         => Mathf.Lerp(start, end, t * t);
+
+    private static float QuadraticEaseOut(float start, float end, float t)
+        => Mathf.Lerp(start, end, 1 - (1 - t) * (1 - t));
+
+    private static Func<float, float, float, float> GetFunc(TweenStyle style)
+    {
+        return style switch
+        {
+            TweenStyle.linear => Linear,
+            TweenStyle.quadratic => Quadratic,
+            TweenStyle.quadraticEaseOut => QuadraticEaseOut,
+            _ => Linear
+        };
+    }
 }
 
 public enum TweenStyle
 {
     linear,
-    quadratic
+    quadratic,
+    quadraticEaseOut
 }

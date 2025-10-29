@@ -6,17 +6,34 @@ public class HealthUI : MonoBehaviour
 {
     [SerializeField] private Image healthFill;
     [SerializeField] private TMP_Text healthText;
+    [SerializeField] private bool teamMateHealth = false;
+    [SerializeField] private CanvasGroup canvasGroup;
     private HealthComponent playerHealth;
 
     private float red;
     private void Awake()
     {
         red = healthText.color.r;
-        PlayerNetworkInput.OwnerSpawned += (mediator) =>
+        if (teamMateHealth) return;
+
+        PlayerNetworkInput.OwnerSpawned += Subscribe;
+    }
+
+    private void Start()
+    {
+        if (!teamMateHealth) return;
+
+        GameStateManager.Instance.GameStarted += () =>
         {
-            playerHealth = mediator.HealthComponent;
-            playerHealth.CurrentHealth.OnValueSet += UpdateHealth;
+            Subscribe(CharacterManager.Instance.LocalPlayer.GetTeamMate().Mediator);
+            canvasGroup.alpha = 1f;
         };
+    }
+
+    private void Subscribe(CharacterMediator mediator)
+    {
+        playerHealth = mediator.HealthComponent;
+        playerHealth.CurrentHealth.OnValueSet += UpdateHealth;
     }
 
     private void UpdateHealth(int newHealth)

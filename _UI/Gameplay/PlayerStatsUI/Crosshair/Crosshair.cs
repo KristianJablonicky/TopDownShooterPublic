@@ -10,6 +10,8 @@ public class Crosshair : MonoBehaviour
     [SerializeField] private CanvasGroup headshotDot;
     [Header("Channeling")]
     [SerializeField] private Image channelingImage;
+    [SerializeField] private CanvasGroup[] crosshairCanvasGroups;
+    [SerializeField] private float crosshairAlphaWhileChanneling = 0.25f;
 
     [Header("References")]
     [SerializeField] private RectTransform cursorRoot;
@@ -19,12 +21,19 @@ public class Crosshair : MonoBehaviour
     [SerializeField] private GameObject ActiveGO, ChannelingGO;
     [SerializeField] private float minLineOffset = 3f;
 
+
     private Gun playerGun;
+    private CharacterMediator mediator;
     private void Awake()
     {
         Cursor.visible = false;
         PlayerNetworkInput.OwnerSpawned += OnOwnerSpawn;
         enabled = false;
+    }
+
+    private void Start()
+    {
+        EscapeMenuManager.Instance.Toggled += OnEscapeMenuToggled;
     }
 
     private void OnDestroy()
@@ -34,9 +43,12 @@ public class Crosshair : MonoBehaviour
 
     private void OnOwnerSpawn(CharacterMediator mediator)
     {
+        this.mediator = mediator;
         playerGun = mediator.Gun;
         enabled = true;
         mediator.InputHandler.AimDirectionChanged += OnAimDirectionChange;
+
+        mediator.Died += (_) => UpdateOnDeath();
     }
 
     private void OnAimDirectionChange(AimDirection aimDirection)
@@ -61,27 +73,41 @@ public class Crosshair : MonoBehaviour
             out Vector2 mousePos
         );
         cursorRoot.localPosition = mousePos;
-        
-        
+        if (mediator.IsAlive) UpdateAlive();
+    }
+
+    private void UpdateAlive()
+    {
         if (playerGun.ChannelingManager.Channeling)
         {
             var progress = playerGun.ChannelingManager.Progress;
             ChannelingGO.SetActive(true);
-            ActiveGO.SetActive(false);
+
+            //ActiveGO.SetActive(false);
+            SetActiveCrosshairAlpha(crosshairAlphaWhileChanneling);
+
+
             channelingImage.fillAmount = 1f - progress;
-            return;
         }
         else if (ChannelingGO.activeSelf)
         {
             ChannelingGO.SetActive(false);
-            ActiveGO.SetActive(true);
+            //ActiveGO.SetActive(true);
+            SetActiveCrosshairAlpha(1f);
         }
 
         var worldCenter = playerCamera.ScreenToWorldPoint(
             new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10f)
         );
 
-        var worldOffset = worldCenter + playerCamera.transform.up * (playerGun.GetDiameter() / 2f);
+        var angleRad = playerGun.GetAngle() * Mathf.Deg2Rad;
+
+
+        var distance = Vector2.Distance(mediator.GetPosition(), mediator.InputHandler.CursorPosition);
+
+        var spreadRadius = Mathf.Tan(angleRad / 2f) * distance;
+
+        var worldOffset = worldCenter + playerCamera.transform.up * spreadRadius;
 
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             cursorRoot.parent as RectTransform,
@@ -96,18 +122,42 @@ public class Crosshair : MonoBehaviour
             out Vector2 uiOffset
         );
 
-
         var offset = (uiOffset - uiCenter).magnitude;
         offset = Mathf.Max(minLineOffset, offset);
 
+        topLine.anchoredPosition = new(0, offset);
+        bottomLine.anchoredPosition = new(0, -offset);
+        leftLine.anchoredPosition = new(-offset, 0);
+        rightLine.anchoredPosition = new(offset, 0);
 
-        topLine.anchoredPosition = new Vector2(0, offset);
-        bottomLine.anchoredPosition = new Vector2(0, -offset);
-        leftLine.anchoredPosition = new Vector2(-offset, 0);
-        rightLine.anchoredPosition = new Vector2(offset, 0);
 
         var headShotValue = playerGun.CanHeadShot();
         headshotDot.alpha = headShotValue > 0f ? Mathf.Max(playerGun.CanHeadShot(), 0.5f) : 0f;
     }
 
+    private void SetActiveCrosshairAlpha(float targetAlpha)
+    {
+        foreach (var line in crosshairCanvasGroups)
+        {
+            line.alpha = targetAlpha;
+        }
+    }
+
+    private void UpdateOnDeath()
+    {
+        ChannelingGO.SetActive(false);
+        ActiveGO.SetActive(true);
+
+        topLine.anchoredPosition = new(0, minLineOffset);
+        bottomLine.anchoredPosition = new(0, -minLineOffset);
+        leftLine.anchoredPosition = new(-minLineOffset, 0);
+        rightLine.anchoredPosition = new(minLineOffset, 0);
+        headshotDot.alpha = 1f;
+    }
+
+    private void OnEscapeMenuToggled(bool visible)
+    {
+        gameObject.SetActive(!visible);
+        Cursor.visible = visible;
+    }
 }

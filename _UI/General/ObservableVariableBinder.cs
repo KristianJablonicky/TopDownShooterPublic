@@ -5,7 +5,10 @@ public class ObservableVariableBinder : MonoBehaviour
 {
     [SerializeField] private TMP_Text textField;
     [SerializeField] private DisplayType displayType = DisplayType.Default;
+    [SerializeField] private string prefix;
     [SerializeField, TextArea] private string defaultValue;
+
+    private ObservableValue<float> observedVariable;
 
     private IDisplayStrategy strategy;
     private enum DisplayType
@@ -14,20 +17,47 @@ public class ObservableVariableBinder : MonoBehaviour
         Time,
     }
 
+    private bool isInitialized = false;
+
     private void Awake()
+    {
+        if (!isInitialized) Init();
+    }
+
+    private void Init()
     {
         strategy = DisplayStrategyFactory();
         textField.text = defaultValue;
+        gameObject.SetActive(false);
+        isInitialized = true;
     }
 
-    public void Bind(ObservableValue<float> variable)
+    public void Bind(ObservableValue<float> variable, bool updateValueImmediately)
     {
-        variable.OnValueSet += UpdateText;
+        if (!isInitialized) Init();
+        if (observedVariable is null)
+        {
+            gameObject.SetActive(true);
+            observedVariable = variable;
+
+        }
+        else if (observedVariable != variable)
+        {
+            observedVariable.OnValueSet -= UpdateText;
+            observedVariable = variable;
+        }
+        else
+        {
+            // Already bound to this variable
+            return;
+        }
+        observedVariable.OnValueSet += UpdateText;
+        if (updateValueImmediately) UpdateText(observedVariable);
     }
 
     private void UpdateText(float newValue)
     {
-        textField.text = strategy.FormatValue(newValue);
+        textField.text = $"{prefix}{strategy.FormatValue(newValue)}";
     }
 
     #region Display Strategies

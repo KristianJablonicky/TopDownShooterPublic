@@ -42,7 +42,6 @@ public class PlayerVision : MonoBehaviour, IResettable
             gameObject.layer = Mathf.RoundToInt(Mathf.Log(teamMateMask.value, 2));
 
             SwitchLights(false);
-            Debug.Log("TeamMate vision switched on");
 
             // TODO: reconsider
             // guaranteedTeamMateVision.SetActive(true);
@@ -149,7 +148,7 @@ public class PlayerVision : MonoBehaviour, IResettable
 
     public void SetVisionRangeProportional(float newVisionPercentage)
     {
-        SetVisionRange(visionRange * newVisionPercentage);
+        SetVisionRange(baseVisionRange * newVisionPercentage);
     }
     public void SetVisionRange(float newVisionRange)
     {
@@ -160,5 +159,11 @@ public class PlayerVision : MonoBehaviour, IResettable
                 visionLight.UpdateVision(value, guaranteedVisionRangeMultiplier * value);
             }
         );
+    }
+
+    public void AdjustBaseVisionRange(float newBase)
+    {
+        baseVisionRange += newBase;
+        SetVisionRange(baseVisionRange);
     }
 }

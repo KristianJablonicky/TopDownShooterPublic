@@ -5,6 +5,7 @@ public class HereSelectionButton : MonoBehaviour
 {
     [SerializeField] private CharacterToolkit toolkit;
     [SerializeField] private AbilityUI[] abilityUIButtons;
+    [SerializeField] private GunDescriptionUI gunDescription;
 
     [SerializeField] private TMP_Text heroName, heroDescription, abilityDescription;
 
@@ -26,10 +27,13 @@ public class HereSelectionButton : MonoBehaviour
     {
         for (int i = 0; i < abilityUIButtons.Length; i++)
         {
-            abilityUIButtons[i].Init(toolkit.GetAbility((AbilityType)i), false);
+            abilityUIButtons[i].Init(toolkit.GetAbility((AbilityType)i), true);
         }
+        gunDescription.Init(toolkit);
         heroName.text = toolkit.HeroName;
         heroDescription.text = toolkit.HeroDescription;
         abilityDescription.text = "";
+
+        MainMenuManager.Instance.UpdateHighScore();
     }
 }

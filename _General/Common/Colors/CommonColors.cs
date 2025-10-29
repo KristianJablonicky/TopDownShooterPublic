@@ -26,6 +26,8 @@ public class CommonColors : SingletonMonoBehaviour<CommonColors>
         }
         return Instance.Cyan;
     }
+
+    public static Color GetTeamColor(Team team) => GetTeamColor((int)team);
 }
 
 public enum Colors

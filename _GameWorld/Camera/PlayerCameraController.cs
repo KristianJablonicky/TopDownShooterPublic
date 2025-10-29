@@ -5,6 +5,7 @@ public sealed class PlayerCameraController : CameraController
 {
     [SerializeField] private Camera cameraComponent, teamMateCamera, uiCamera;
     [SerializeField] private RawImage rawImage;
+    [SerializeField] private CopyRotation audioListener;
 
     [Header("ADS settings")]
     [SerializeField] private float minOffset = 2f;
@@ -30,12 +31,23 @@ public sealed class PlayerCameraController : CameraController
 
     private void OnOwnerSpawned(CharacterMediator mediator)
     {
-        mediator.InputHandler.SetCamera(cameraComponent, uiCamera, rawImage);
         input = mediator.InputHandler;
+        input.SetCamera(cameraComponent, uiCamera, rawImage);
 
         mediator.InputHandler.AimedDownSights += OnAimChange;
         mediator.InputHandler.ScrolledWheelUp += OnWheelScroll;
         currentOffset = minOffset;
+
+        var relative = DataStorage.Instance.GetInt(DataKeyInt.SettingsRelativeSounds);
+
+        if (relative == 1)
+        {
+            audioListener.Copy(mediator.RotationController.gameObject);
+        }
+        else
+        {
+            Destroy(audioListener);
+        }
 
         mediator.Died += OnDeath;
         mediator.Respawned += OnRespawn;
@@ -43,7 +55,7 @@ public sealed class PlayerCameraController : CameraController
     private void OnDeath(CharacterMediator mediator)
     {
         if (!GameStateManager.Instance.GameInProgress) return;
-        var teamMate = mediator.playerData.Team.GetTeamMate(mediator.playerData).Mediator;
+        var teamMate = mediator.playerData.GetTeamMate().Mediator;
         if (teamMate.IsAlive)
         {
             teamMateCamera.targetTexture = playerRenderTexture;
@@ -55,7 +67,7 @@ public sealed class PlayerCameraController : CameraController
     {
         if (!GameStateManager.Instance.GameInProgress) return;
         teamMateCamera.targetTexture = teamMateRenderTexture;
-        var teamMate = mediator.playerData.Team.GetTeamMate(mediator.playerData).Mediator;
+        var teamMate = mediator.playerData.GetTeamMate().Mediator;
         teamMate.PlayerVision.SwitchLights(false);
     }
 

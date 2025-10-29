@@ -8,8 +8,9 @@ public class SceneManager
         LoadScene(MainMenu);
     }
 
-    public static void FindAMatch()
+    public static void StartGameplay(GameMode gameMode)
     {
+        DataStorage.Instance.SetInt(DataKeyInt.GameMode, (int)gameMode);
         LoadScene(Gameplay);
     }
 

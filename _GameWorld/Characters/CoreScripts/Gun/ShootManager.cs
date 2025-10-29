@@ -4,6 +4,7 @@ public class ShootManager : IUpdatable, IResettable
 {
     private readonly GunConfig config;
     private float currentCoolDown = 0f;
+    private float reloadSpeedMultiplier = 1f;
     public ObservableValue<int> CurrentAmmo { get; private set; }
 
     private readonly float coolDown;
@@ -50,7 +51,11 @@ public class ShootManager : IUpdatable, IResettable
         if (CurrentAmmo == config.capacity
             || channel.Channeling) return;
 
-        channel.Channel(config.reloadDuration, () => CurrentAmmo.Set(config.capacity));
+        channel.StartChanneling(
+            config.reloadDuration * reloadSpeedMultiplier,
+            () => CurrentAmmo.Set(config.capacity),
+            true
+        );
     }
 
     public void IUpdate(float dt)
@@ -68,7 +73,16 @@ public class ShootManager : IUpdatable, IResettable
         CurrentAmmo.Set(config.capacity);
     }
 
-    public void AdjustAmmo(int adjustment) => CurrentAmmo.Adjust(adjustment);
+    public void AdjustAmmo(int adjustment)
+    {
+        CurrentAmmo.Adjust(adjustment, 0, config.capacity);
+        if (CurrentAmmo <= 0) Reload();
+    }
 
     public void SetAmmo(int newAmmo) => CurrentAmmo.Set(newAmmo);
+
+    public void MultiplyMultiplier(float multiplier)
+    {
+        reloadSpeedMultiplier *= multiplier;
+    }
 }

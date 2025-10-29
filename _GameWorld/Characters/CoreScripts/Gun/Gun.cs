@@ -1,10 +1,11 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using static AimDirection;
+
 public class Gun : MonoBehaviour, IResettable
 {
-    [field: FormerlySerializedAs("gunConfig")]
-    [field: SerializeField] public GunConfig GunConfig { get; private set; }
+    
+    [SerializeField] private AbilityManager abilityManager;
+    public GunConfig GunConfig { get; private set; }
 
     [SerializeField] private float headShotRangeBuffer = 1f;
     [SerializeField] private Transform gunTip;
@@ -25,12 +26,12 @@ public class Gun : MonoBehaviour, IResettable
     private static readonly RaycastHit2D[] _raycastHits = new RaycastHit2D[15];
 
     public ShootManager ShootManager { get; private set; }
-    public ChannelingManager ChannelingManager { get; private set; }
+    public ChannelingManager ChannelingManager { get; private set; } = new();
     private RecoilManager recoilManager;
     private IUpdatable[] managers;
     private void Awake()
     {
-        ChannelingManager = new();
+        GunConfig = abilityManager.Toolkit.GunConfig;
         ShootManager = new ShootManager(GunConfig, ChannelingManager);
         recoilManager = new RecoilManager(GunConfig, characterMovementController);
         managers = new IUpdatable[]
@@ -51,7 +52,8 @@ public class Gun : MonoBehaviour, IResettable
         }
     }
     public void Reload() => ShootManager.Reload();
-    public float GetDiameter() => recoilManager.GetRecoilDiameter();
+    public float GetAngle() => recoilManager.GetRecoilAngle();
+    public float GetRecoil() => recoilManager.CurrentRecoil;
 
     public int ShotCount => GunConfig.shotCount;
     public bool CanShoot(bool pressedDown)
@@ -241,12 +243,25 @@ public class Gun : MonoBehaviour, IResettable
 
     private Vector2 GetTarget(Vector2 targetPosition)
     {
-        var randomInsideCircle = Random.insideUnitCircle;
+        var playerPos = mediator.GetPosition();
 
-        var shootTarget = targetPosition +
-            recoilManager.GetRecoilDiameter() *
-            randomInsideCircle;
-        return shootTarget;
+        var diff = targetPosition - playerPos;
+        var distance = diff.magnitude;
+        var direction = diff.normalized;
+
+        var angleDeg = recoilManager.GetRecoilAngle() *
+            Random.Range(-0.5f, 0.5f);
+        var radians = angleDeg * Mathf.Deg2Rad;
+
+        var cos = Mathf.Cos(radians);
+        var sin = Mathf.Sin(radians);
+
+        var rotatedDir = new Vector2 (
+            direction.x * cos - direction.y * sin,
+            direction.x * sin + direction.y * cos
+        );
+
+        return playerPos + rotatedDir.normalized * distance;
     }
 
     public void Reset()

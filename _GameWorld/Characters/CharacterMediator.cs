@@ -16,16 +16,25 @@ public class CharacterMediator : MonoBehaviour, IResettable
     [field: SerializeField] public PlayerVision PlayerVision { get; private set; }
     [field: SerializeField] public AnimationController AnimationController { get; private set; }
 
+    public ModifiersList Modifiers { get; private set; } = new ModifiersList();
+
     [SerializeField] private GameObject[] deactivateOnDeath;
+
+    [field: SerializeField] public bool IsNPC { get; private set; } = false;
+    
     private (GameObject go, bool wasActive)[] deactivateInternal; 
 
     public Vector2 GetPosition() => MovementController.transform.position;
-    public ulong PlayerId => NetworkInput.OwnerClientId;
+    public Transform GetTransform() => MovementController.transform;
+
+    private ulong playerId;
+    public void SetID(ulong newId) => playerId = newId;
+    public ulong PlayerId => playerId;
+
     public string PlayerName => NetworkInput.PlayerName.Value.ToString();
     public bool IsLocalPlayer => NetworkInput.IsOwner;
 
-    const float yThreshold = Constants.floorYOffset * 0.5f;
-    public Floor CurrentFloor => GetPosition().y < yThreshold ? Floor.First : Floor.Second;
+    public Floor CurrentFloor => FloorUtilities.GetCurrentFloor(GetPosition());
     
     public PlayerData playerData;
     public Role role;
@@ -51,16 +60,23 @@ public class CharacterMediator : MonoBehaviour, IResettable
 
     public void Die(CharacterMediator killer)
     {
-        SetActivity(false);
         Killed?.Invoke(this, killer);
         Died?.Invoke(this);
 
-        // respawn after a delay if the match has not started yet
-        StartCoroutine(GameStateManager.Instance.WarmUpRespawn(this));
+        if (!IsNPC)
+        {
+            // respawn after a delay if the match has not started yet
+            StartCoroutine(GameStateManager.Instance.WarmUpRespawn(this));
+        }
+        SetActivity(false);
     }
 
-    private void SetActivity(bool active)
+    public void SetActivity(bool active)
     {
+        if (!active)
+        {
+            HealthComponent.CurrentHealth.Set(0);
+        }
         for (int i = 0; i < deactivateInternal.Length; i++)
         {
             // double check if the gameObject was active before
@@ -87,18 +103,18 @@ public class CharacterMediator : MonoBehaviour, IResettable
         }
         else
         {
-            corpse = AnimationController.DeathAnimation(SpriteRenderer.color);
+            corpse = AnimationController?.DeathAnimation(SpriteRenderer.color);
         }
     }
 
     public void Reset()
     {
         SetActivity(true);
-        Gun.Reset();
+        Gun?.Reset();
         HealthComponent.Reset();
-        AbilityManager.Reset();
-        MovementController.Reset();
-        PlayerVision.Reset();
+        AbilityManager?.Reset();
+        MovementController?.Reset();
+        PlayerVision?.Reset();
         Respawned?.Invoke(this);
     }
 
@@ -106,4 +122,28 @@ public class CharacterMediator : MonoBehaviour, IResettable
     {
         Disconnected?.Invoke();
     }
+
+    #region Utilities
+    public bool InRange(CharacterMediator otherMediator, float maxRange)
+    {
+        return InRange(otherMediator.GetPosition(), maxRange);
+    }
+
+    public bool InRange(Vector2 position, float maxRange)
+    {
+        return Vector2.Distance(GetPosition(), position) <= maxRange;
+    }
+
+    public bool LookingAt(CharacterMediator otherMediator, float angle)
+    {
+        var diff = otherMediator.GetPosition() - GetPosition();
+
+        var targetAngle = Mathf.Atan2(diff.y, diff.x) * Mathf.Rad2Deg;
+
+        var angleDiff = Mathf.DeltaAngle(RotationController.GetRotationAngle, targetAngle);
+
+        return Mathf.Abs(angleDiff) <= angle * 0.5f;
+    }
+
+    #endregion
 }

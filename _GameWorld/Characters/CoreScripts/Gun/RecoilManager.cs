@@ -13,7 +13,7 @@ public class RecoilManager : IUpdatable
         this.mc = mc;
     }
 
-    public float GetRecoilDiameter() => CurrentRecoil * config.maxRecoilDiameter;
+    public float GetRecoilAngle() => CurrentRecoil * config.maxRecoilAngle;
     public bool CanHeadshot() => CurrentRecoil <= config.headshotAccuracyRequirement;
     public void IUpdate(float dt)
     {
@@ -27,19 +27,25 @@ public class RecoilManager : IUpdatable
         gunRecoil -= decay;
         gunRecoil = Mathf.Clamp01(gunRecoil);
 
-        CurrentRecoil = movementRecoil + gunRecoil;
-        CurrentRecoil = Mathf.Clamp01(CurrentRecoil);
+        UpdateCurrentRecoil();
     }
 
     public void ApplyRecoil(float shotCount)
     {
         gunRecoil += shotCount * config.baseRecoilPerShot;
         gunRecoil *= 1f + config.recoilPerShotMultiplier;
-        CurrentRecoil = movementRecoil + gunRecoil;
+        UpdateCurrentRecoil();
     }
 
     public void ApplyRecoilMouseMovement(float recoil)
     {
         gunRecoil += recoil;
+        UpdateCurrentRecoil();
+    }
+
+    private void UpdateCurrentRecoil()
+    {
+        CurrentRecoil = movementRecoil + gunRecoil;
+        CurrentRecoil = Mathf.Clamp01(CurrentRecoil);
     }
 }

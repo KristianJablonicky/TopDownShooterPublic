@@ -3,24 +3,22 @@ using UnityEngine;
 
 public class FadeOutThenGetDestroyed : MonoBehaviour
 {
-    [SerializeField] private float duration = 1f, fadeOutTime = 0.5f;
+    public float duration = 1f, fadeOutTime = 0.5f;
     [SerializeField] private SpriteRenderer sr;
+    [SerializeField] private bool shrinkSize = false;
 
     private void Awake()
     {
-        StartCoroutine(FadeOut());
-    }
-
-    private IEnumerator FadeOut()
-    {
-        yield return new WaitForSeconds(duration);
-        float timeRemaining = fadeOutTime;
-        while (timeRemaining > 0f)
+        if (sr != null)
         {
-            timeRemaining -= Time.deltaTime;
-            sr.SetAlpha(timeRemaining / fadeOutTime);
-            yield return null;
+            Tweener.Tween(this, 1f, 0f, fadeOutTime, TweenStyle.linear,
+                value => sr.SetAlpha(value), () => Destroy(gameObject), duration);
+            //StartCoroutine(FadeOut());
         }
-        Destroy(gameObject);
+        if (shrinkSize)
+        {
+            Tweener.Tween(this, transform.localScale, Vector2.zero, fadeOutTime, TweenStyle.linear,
+                value => transform.localScale = value, () => Destroy(gameObject), duration);
+        }
     }
 }

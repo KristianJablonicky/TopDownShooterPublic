@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
 public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
 {
     [SerializeField] private CameraController playerCamera, allyCamera;
-    public Dictionary<ulong, CharacterMediator> Players { get; private set; }
+    public Dictionary<ulong, CharacterMediator> Mediators { get; private set; }
     public PlayerData T1P1, T1P2, T2P1, T2P2;
     public PlayerData LocalPlayer { get; private set; }
     public CharacterMediator LocalPlayerMediator { get; private set; }
@@ -20,7 +19,7 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
     public event Action<CharacterMediator> CharacterRegistered;
     protected override void OverriddenAwake()
     {
-        Players = new();
+        Mediators = new();
         PlayerData = new[] { T1P1, T1P2, T2P1, T2P2 };
         //PlayerData = new[] { T1P1, T2P1 };
         Orange = new(Team.Orange);
@@ -44,15 +43,14 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
 
         alreadyDisconnected = true;
         string disconnectString;
-        if (Players[disconnectedId].playerData is null)
+        if (Mediators[disconnectedId].playerData is null)
         {
             disconnectString = "A player has disconnected before the match started.";
         }
         else
         {
-            disconnectString = $"{Players[disconnectedId].playerData.Name} has disconnected";
+            disconnectString = $"{Mediators[disconnectedId].playerData.Name} has disconnected";
         }
-        Debug.Log(disconnectString);
         DataStorage.Instance.disconnectReason = disconnectString;
 
         if (NetworkManager.Singleton != null)
@@ -66,28 +64,32 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
     public void RegisterCharacter(CharacterMediator character)
     {
         var uID = character.PlayerId;
-        Debug.Log($"Registering {uID}");
-        Players.Add(uID, character);
+        Mediators.Add(uID, character);
 
         CharacterRegistered?.Invoke(character);
 
-        if (character.IsLocalPlayer)
+        if (character.IsLocalPlayer && !character.IsNPC)
         {
-            playerCamera.InitialSetTarget(character);
-
-            var connectedPlayers = NetworkManager.Singleton.ConnectedClientsList.Count;
-            var x = 6f;
-            var direction = connectedPlayers % 2 == 0 ? -1f : 1f;
-            var y = connectedPlayers < 3 ? -1f : 1f;
-            var spawnPos = new Vector2(x * direction, y);
-            Debug.Log(connectedPlayers);
-            Debug.Log(spawnPos);
-            character.MovementController.SetPosition(spawnPos);
-
             LocalPlayerMediator = character;
+            playerCamera.InitialSetTarget(character, false);
+            
+            if (DataStorage.Instance.GetGameMode() == GameMode.MultiPlayer)
+            {
+#if UNITY_EDITOR
+                var connectedPlayers = NetworkManager.Singleton.ConnectedClientsList.Count;
+                var x = 6f;
+                var direction = connectedPlayers % 2 == 0 ? -1f : 1f;
+                var y = connectedPlayers < 3 ? -1f : 1f;
+                var spawnPos = new Vector2(x * direction, y);
+#else
+                var spawnPos = (UnityEngine.Random.insideUnitSphere * 5f);
+#endif
+                character.MovementController.SetPosition(spawnPos);
+            }
         }
 
-        if (Players.Count == Constants.maxPlayerCount)
+        if (DataStorage.Instance.GetGameMode() == GameMode.MultiPlayer &&
+            Mediators.Count == Constants.maxPlayerCount)
         {
             AllPlayersJoined();
         }
@@ -104,13 +106,10 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
         
         foreach (var id in playerIDs)
         {
-            var mediator = Players[id];
+            var mediator = Mediators[id];
 
             var teamEnum = mediator.GetPosition().x < 0f ? Team.Orange : Team.Cyan;
             var team = Teams[teamEnum];
-
-            Debug.Log($"Player s objektivnym indexom {id} patri timu {team.Name}");
-            UnityEngine.Debug.Log($"Jeho pozicia jest {mediator.GetPosition()}");
 
             var newPlayerData = new PlayerData(
                 mediator: mediator,
@@ -122,7 +121,6 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
             if (mediator.IsLocalPlayer)
             {
                 LocalPlayer = newPlayerData;
-                Debug.Log($"Tento objektivny indexovy muz je lokalny hrac, pozor.");
             }
 
             PlayerData[id] = newPlayerData;
@@ -132,22 +130,32 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
 
         TeamSelector.Instance.DestroyAreas();
 
-        var teamMate = LocalPlayer.Team.GetTeamMate(LocalPlayer);
-        allyCamera.InitialSetTarget(teamMate.Mediator);
+        var teamMate = LocalPlayer.GetTeamMate();
+        allyCamera.InitialSetTarget(teamMate.Mediator, true);
         teamMate.Mediator.PlayerVision.GetEnabled(true);
+
         LocalPlayer.Mediator.AbilityManager.AssignTeamMate(teamMate.Mediator);
+        LocalPlayer.Mediator.InputHandler.SetTeamMateCamera(allyCamera.Camera);
 
         GameStateManager.Instance.StartNewGame(this);
     }
     /// <summary>
     /// Get an array of all local player's enemies.
     /// </summary>
-    public PlayerData[] Enemies => LocalPlayer.Team.GetTheEnemyTeamData().Players;
+    public PlayerData[] Enemies => LocalPlayer.Team.EnemyTeamData.Players;
 
-    public PlayerData[] EnemiesOf(CharacterMediator mediator) => mediator.playerData.Team.GetTheEnemyTeamData().Players;
+    public PlayerData[] EnemiesOf(CharacterMediator mediator) => mediator.playerData.Team.EnemyTeamData.Players;
 
     /// <summary>
     /// Get an array of the local player, as well as all their team mates.
     /// </summary>
     public PlayerData[] AlliedUnits => LocalPlayer.Team.Players;
+
+    public PlayerData[] GetAlliedUnitsOf(CharacterMediator mediator) => mediator.playerData.Team.Players;
+
+
+    public void UnregisterCharacter(CharacterMediator mediator)
+    {
+        Mediators.Remove(mediator.PlayerId);
+    }
 }

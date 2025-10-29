@@ -1,32 +1,39 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "Curse", menuName = "Abilities/Utility/Curse")]
-public class Curse : ActiveAbility
+public class Curse : UtilityAbility
 {
     [field: SerializeField] public float Duration { get; private set; } = 3f;
+    [field: SerializeField] public float Range { get; private set; } = 10f;
     [field: SerializeField] public float NearSightedMultiplier { get; private set; } = 0.5f;
+    [field: SerializeField] public float ArcDegrees { get; private set; } = 45f;
+    [field: SerializeField] public PopIn SweepGO { get; private set; }
+
     [SerializeField] private float castAnimationTime = 0.25f;
 
-    protected override void OnKeyDown(Vector2 position) { }
+    protected override void OnKeyDown(Vector2 position)
+    {
+        ShowRangeIndicator(Range);
+    }
 
     protected override void OnKeyUp(Vector2 position)
     {
-        var channel = owner.Gun.ChannelingManager;
-
-        if (channel.Channeling) return;
-        channel.Channel(castAnimationTime, CastEffect);
+        if (channelingManager.Channeling) return;
+        channelingManager.StartChanneling(castAnimationTime, CastEffect);
     }
 
     private void CastEffect()
     {
-        if (owner.AbilityRPCs is BabaYagaRPCs rpcs)
+        HideRangeIndicator();
+        TryInvokeRPC<BabaYagaRPCs>(rpcs =>
         {
-            rpcs.RequestCurseRPC(owner.PlayerId);
+            rpcs.RequestSweepCurseRPC(owner.PlayerId);
             OnCast();
-        }
-        else
-        {
-            Debug.LogError("Character RPCs are not of the correct type");
-        }
+        });
+    }
+
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"Duration: {Duration}\nRange: {Range}\nNearsighted vision: {Mathf.RoundToInt(100f * NearSightedMultiplier)}%\nCast delay: {castAnimationTime}";
     }
 }

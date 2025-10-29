@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "BloodDrinker", menuName = "Abilities/Passive/BloodDrinker")]
-public class BloodDrinker : Ability
+public class BloodDrinker : PassiveAbility
 {
     [SerializeField] private int healthThreshold = 30;
     [SerializeField] private int healOnKill = 50;
@@ -17,7 +17,7 @@ public class BloodDrinker : Ability
 
         mediatorDrained = new();
         var manager = CharacterManager.Instance;
-        foreach (var player in manager.Players.Values)
+        foreach (var player in manager.Mediators.Values)
         {
             SubscribeCharacter(player);
         }
@@ -50,7 +50,7 @@ public class BloodDrinker : Ability
     {
         await Task.Delay((int)(beforeKillDelay * 1000f));
         hitMediator.HealthComponent.TakeLethalDamage();
-        owner.NetworkInput.RequestHealRpc(healOnKill);
+        owner.NetworkInput.RequestHealRpc(healOnKill, true);
     }
 
     protected override void SetUp() { }
@@ -61,5 +61,10 @@ public class BloodDrinker : Ability
         {
             mediatorDrained[key] = false;
         }
+    }
+
+    protected override string _GetAbilitySpecificStats()
+    {
+        return $"Health threshold: {healthThreshold}\nHeal on kill: {healOnKill}\nDelay: {beforeKillDelay}";
     }
 }
