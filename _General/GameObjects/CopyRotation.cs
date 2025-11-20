@@ -2,10 +2,13 @@ using UnityEngine;
 
 public class CopyRotation : MonoBehaviour
 {
-    private GameObject copiedGO;
+    [SerializeField] private GameObject copiedGO;
     private void Start()
     {
-        enabled = false;
+        if (copiedGO == null)
+        {
+            enabled = false;
+        }
     }
     
     public void Copy(GameObject go)
@@ -16,6 +19,13 @@ public class CopyRotation : MonoBehaviour
     
     private void LateUpdate()
     {
-        transform.rotation = copiedGO.transform.rotation;
+        if (copiedGO != null)
+        {
+            transform.rotation = copiedGO.transform.rotation;
+        }
+        else
+        {
+            enabled = false;
+        }
     }
 }

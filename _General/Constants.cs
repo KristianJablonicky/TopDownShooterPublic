@@ -1,12 +1,12 @@
 public static class Constants
 {
     public const float maxVolume = 0.25f;
-    public const float nonSpatialVolumeMultiplier = 1f;
+    public const float nonSpatialVolumeMultiplier = 1.5f;
 
     public const byte maxPlayerCount = 4;
 
     public const float floorYOffset = 75f;
-    public const float crossFloorDamageMultiplier = 0.25f;
+    public const float crossFloorDamageMultiplier = 0.75f;
 
     public const int roundsToWinMatch = 5;
 

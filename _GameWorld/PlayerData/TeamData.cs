@@ -4,24 +4,14 @@ public class TeamData : IResettable
     public PlayerData[] Players { get; private set; }
     private Dictionary<PlayerData, PlayerData> teamMateDict;
     public Team Name { get; private set; }
+    public bool LocalPlayersTeam { get; set; } = false;
+    public Role CurrentRole { get; set; }
     public ObservableValue<int> Wins { get; private set; } = new(0);
-    public int attackerWins, defenderWins;
     public void Reset()
     {
         Wins = new(0);
     }
-    public void AddWin(Role role)
-    {
-        Wins.Adjust(1);
-        if (role == Role.Attacker)
-        {
-            attackerWins++;
-        }
-        else
-        {
-            defenderWins++;
-        }
-    }
+    public void AddWin() => Wins++;
 
     public TeamData(Team team)
     {

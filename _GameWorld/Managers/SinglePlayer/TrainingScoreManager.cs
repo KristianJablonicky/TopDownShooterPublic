@@ -1,10 +1,8 @@
-using UnityEngine.SceneManagement;
-
 public class TrainingScoreManager : IResettable
 {
-    private const float ScorePerTakeDown = 1f;
+    private const int ScorePerTakeDown = 1;
 
-    public ObservableValue<float> Score { get; private set; }
+    public ObservableValue<int> Score { get; private set; }
 
     public TrainingScoreManager(ObservableVariableBinder binder)
     {
@@ -16,7 +14,7 @@ public class TrainingScoreManager : IResettable
     {
         AddScore(ScorePerTakeDown);
     }
-    public void AddScore(float scoreToAdd)
+    public void AddScore(int scoreToAdd)
     {
         Score.Adjust(scoreToAdd);
     }

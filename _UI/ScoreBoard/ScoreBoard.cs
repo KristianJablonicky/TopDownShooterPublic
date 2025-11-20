@@ -1,14 +1,14 @@
 using System;
 using System.Text;
-using TMPro;
 using UnityEngine;
 using static DataKeyInt;
+
 public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
 {
     [SerializeField] private float fadeInDuration = 0.25f;
-    [SerializeField] private PlayerEntryUI[] playerEntries;
-    [SerializeField] private TMP_Text[] binders;
     [SerializeField] private CanvasGroup canvasGroup;
+    [SerializeField] private RoundHistory history;
+    [SerializeField] private ScoreBoardTeamSection[] teamSections;
 
     private CharacterManager manager;
     private GameStateManager gameState;
@@ -23,7 +23,6 @@ public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
     {
         if (!gameState.GameInProgress) return;
         gameObject.SetActive(true);
-        UpdateTexts();
         Fade(1f, null);
     }
     public void Hide()
@@ -50,32 +49,16 @@ public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
         gameState = GameStateManager.Instance;
 
         canvasGroup.alpha = 0f;
+        gameState.GameStarted += InitialSetUp;
         gameObject.SetActive(false);
     }
 
-
-    private void UpdateTexts()
+    private void InitialSetUp()
     {
-        for (int teamNumber = 0; teamNumber < 2; teamNumber++)
-        {
-            var team = manager.Teams[(Team)teamNumber];
-            binders[teamNumber].text = $"{team.Wins} (A:{team.attackerWins})";
-            //binders[teamNumber].text = team.Wins.ToString();
-
-            for (int playerNumber = 0; playerNumber < team.Players.Length; playerNumber++)
-            {
-                var player = team.Players[playerNumber];
-                var entry = playerEntries[playerNumber + teamNumber * 2];
-
-                entry.SetPlayerData(
-                    player.Name,
-                    player.PlayerScore.Kills,
-                    player.PlayerScore.Deaths
-                );
-                entry.Highlight(player.Mediator.IsLocalPlayer);
-            }
-        }
+        history.Init();
+        foreach (var section in teamSections) section.Init();
     }
+
 
     private void OnDestroy()
     {
@@ -108,8 +91,8 @@ public class ScoreBoard : SingletonMonoBehaviour<ScoreBoard>
         var storage = DataStorage.Instance;
         var localPlayer = manager.LocalPlayer;
         
-        storage.Increment(Wins, localPlayer.Team.Wins);
-        storage.Increment(Losses, localPlayer.Team.EnemyTeamData.Wins);
+        storage.Increment(Wins, (int)localPlayer.Team.Wins);
+        storage.Increment(Losses, (int)localPlayer.Team.EnemyTeamData.Wins);
         storage.Increment(Kills, localPlayer.PlayerScore.Kills);
         storage.Increment(Deaths, localPlayer.PlayerScore.Deaths);
     }

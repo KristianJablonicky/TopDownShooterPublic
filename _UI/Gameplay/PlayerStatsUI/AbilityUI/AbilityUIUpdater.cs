@@ -21,7 +21,7 @@ public class AbilityUIUpdater : Hoverable
 
     private void Awake()
     {
-        PlayerNetworkInput.OwnerSpawned += OnOwnerSpawned;
+        PlayerNetworkInput.PlayerSpawned += OnOwnerSpawned;
     }
 
     private void OnOwnerSpawned(CharacterMediator mediator)

@@ -19,7 +19,7 @@ public class BoundsCheck : MonoBehaviour
         gameStateManager.NewRoundStarted += OnNewRound;
         gameStateManager.RoundEnded += OnRoundEnd;
 
-        PlayerNetworkInput.OwnerSpawned += (player) => localPlayer = player;
+        PlayerNetworkInput.PlayerSpawned += (player) => localPlayer = player;
     }
 
     private void OnRoundEnd()
@@ -35,7 +35,7 @@ public class BoundsCheck : MonoBehaviour
 
     private void OnNewRound()
     {
-        if (localPlayer.role == Role.Defender)
+        if (localPlayer.Role == Role.Defender)
         {
             checkCoroutine = StartCoroutine(CheckDefender());
         }
@@ -51,7 +51,7 @@ public class BoundsCheck : MonoBehaviour
         {
             yield return wait;
 
-            if (!localPlayer.IsAlive) break;
+            if (!localPlayer.IsAlive || localPlayer == null) break;
 
             var position = localPlayer.GetPosition();
 
@@ -76,7 +76,6 @@ public class BoundsCheck : MonoBehaviour
             }
 
             timeSpentOutside += checkInterval;
-            Debug.Log($"{timeSpentOutside:F1} seconds spent outside");
             screenOverlay.alpha = timeSpentOutside / maxTimeOutside;
 
             if (timeSpentOutside >= maxTimeOutside)

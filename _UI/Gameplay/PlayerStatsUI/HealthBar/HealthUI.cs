@@ -16,7 +16,7 @@ public class HealthUI : MonoBehaviour
         red = healthText.color.r;
         if (teamMateHealth) return;
 
-        PlayerNetworkInput.OwnerSpawned += Subscribe;
+        PlayerNetworkInput.PlayerSpawned += Subscribe;
     }
 
     private void Start()
@@ -34,6 +34,7 @@ public class HealthUI : MonoBehaviour
     {
         playerHealth = mediator.HealthComponent;
         playerHealth.CurrentHealth.OnValueSet += UpdateHealth;
+        UpdateHealth(playerHealth.CurrentHealth);
     }
 
     private void UpdateHealth(int newHealth)

@@ -16,6 +16,11 @@ public class NPCSoundGenerator : MonoBehaviour
 
     private void OnDisable()
     {
+        StopCoroutine();
+    }
+
+    private void StopCoroutine()
+    {
         if (playingCoroutine != null)
         {
             initialDelay = maxInitialDelay;
@@ -30,6 +35,7 @@ public class NPCSoundGenerator : MonoBehaviour
             ignoreInitialEnable = false;
             return;
         }
+        StopCoroutine();
         playingCoroutine = StartCoroutine(PlaySound());
     }
 

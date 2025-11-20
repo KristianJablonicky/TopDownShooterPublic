@@ -3,43 +3,52 @@ using UnityEngine;
 
 public class HealthComponent : MonoBehaviour, IResettable
 {
-    public CharacterMediator mediator;
+    [field: SerializeField] public CharacterMediator Mediator { get; private set; }
     [field: SerializeField] public int MaxHealth { get; private set; } = 100;
     [field: SerializeField] public bool NPC { get; private set; } = false;
     public ObservableValue<int> CurrentHealth { get; private set; }
 
+    public event Action<DamageTag> DamageTakenWithTags;
     public event Action<int, CharacterMediator> DamageTaken;
     public event Action<int, CharacterMediator, CharacterMediator> M1TookDamageFromM2;
 
+    private int baseMaxHealth;
     private void Awake()
     {
         CurrentHealth = new(MaxHealth);
+        baseMaxHealth = MaxHealth;
     }
     public bool CanTakeDamage => CurrentHealth > 0;
     public void TakeLethalDamage()
     {
-        mediator.NetworkInput.TakeLethalDamage();
+        Mediator.NetworkInput.TakeLethalDamage();
     }
 
-    public void TakeDamage(int damage, CharacterMediator killer)
+    public void TakeDamage(int damage, DamageTag tag, CharacterMediator killer)
     {
         if (CurrentHealth <= 0) return;
 
         damage = Mathf.Min(damage, CurrentHealth);
         CurrentHealth.Adjust(-damage, 0);
 
-        if (mediator.IsLocalPlayer)
+        if (Mediator.IsLocalPlayer)
         {
             DamageTaken?.Invoke(damage, killer);
         }
         else
         {
-            M1TookDamageFromM2?.Invoke(damage, mediator, killer);
+            M1TookDamageFromM2?.Invoke(damage, Mediator, killer);
         }
-        
+
+        DamageTakenWithTags?.Invoke(tag);
+
         if (CurrentHealth <= 0)
         {
-            mediator.Die(killer);
+            var gameStateManager = GameStateManager.Instance;
+            if (gameStateManager.GameInProgress
+                && gameStateManager.RoundDecided) return;
+
+            Mediator.Die(killer);
         }
     }
 
@@ -52,6 +61,15 @@ public class HealthComponent : MonoBehaviour, IResettable
 
     public void Reset()
     {
-        CurrentHealth.Set(MaxHealth);
+        MaxHealth = baseMaxHealth;
+        CurrentHealth.Set(baseMaxHealth);
     }
+}
+
+public enum DamageTag
+{
+    Shot,
+    HeadShot,
+    Ability,
+    Neutral
 }

@@ -17,7 +17,7 @@ public class DjinnsPresence : AbilityPostMortem
         if (rpcs.remainingWishes > 0)
         {
             rpcs.RequestWishPostMortemRPC(teamMate.PlayerId);
-            rpcs.remainingWishes.Adjust(-1);
+            rpcs.remainingWishes--;
             OnCast();
             healCoroutine = owner.StartCoroutine(CastAfterDelay());
         }

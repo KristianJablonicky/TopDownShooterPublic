@@ -23,7 +23,7 @@ public class CameraController : MonoBehaviour
         if (teamMate)
         {
             var localPlayer = CharacterManager.Instance.LocalPlayer.Mediator;
-            localPlayer.Died += (_) => { renderUIImage.SetActive(false); };
+            localPlayer.Ascendance.TeamMateAscended += () => { renderUIImage.SetActive(false); };
             localPlayer.Respawned += (_) => { renderUIImage.SetActive(true); };
         }
 
@@ -40,9 +40,15 @@ public class CameraController : MonoBehaviour
     {
         transform.position = new(newPos.x, newPos.y, zOffset);
     }
-    private (float, float) SnapPosition() => (followedGO.transform.position.x, followedGO.transform.position.y);
+    private (float, float) SnapPosition()
+    {
+        if (followedGO == null) return (0f, 0f);
+        return (followedGO.transform.position.x, followedGO.transform.position.y);
+    }
+
     protected (float, float) UpdatePosition()
     {
+        if (followedGO == null) return(0f, 0f);
         var t = transform.position.WithXY(
             Vector2.MoveTowards(transform.position,
                 (Vector2)followedGO.transform.position,

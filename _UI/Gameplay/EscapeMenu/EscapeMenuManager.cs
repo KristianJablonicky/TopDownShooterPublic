@@ -14,7 +14,7 @@ public class EscapeMenuManager : SingletonMonoBehaviour<EscapeMenuManager>
     private bool visible = false;
     private void Start()
     {
-        PlayerNetworkInput.OwnerSpawned += OnPlayerSpawn;
+        PlayerNetworkInput.PlayerSpawned += OnPlayerSpawn;
 
         if (DataStorage.Instance.GetGameMode() == GameMode.SinglePlayer)
         {

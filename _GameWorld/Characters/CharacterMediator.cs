@@ -15,14 +15,14 @@ public class CharacterMediator : MonoBehaviour, IResettable
     [field: SerializeField] public AbilityRPCs AbilityRPCs { get; private set; }
     [field: SerializeField] public PlayerVision PlayerVision { get; private set; }
     [field: SerializeField] public AnimationController AnimationController { get; private set; }
+    [field: SerializeField] public BloodManager BloodManager { get; private set; }
 
+    public Ascendance Ascendance { get; private set; }
     public ModifiersList Modifiers { get; private set; } = new ModifiersList();
 
-    [SerializeField] private GameObject[] deactivateOnDeath;
+    [SerializeField] private GameObject characterPhysics;
 
     [field: SerializeField] public bool IsNPC { get; private set; } = false;
-    
-    private (GameObject go, bool wasActive)[] deactivateInternal; 
 
     public Vector2 GetPosition() => MovementController.transform.position;
     public Transform GetTransform() => MovementController.transform;
@@ -37,36 +37,41 @@ public class CharacterMediator : MonoBehaviour, IResettable
     public Floor CurrentFloor => FloorUtilities.GetCurrentFloor(GetPosition());
     
     public PlayerData playerData;
-    public Role role;
 
     private Corpse corpse;
     public bool IsAlive => HealthComponent.CurrentHealth > 0;
 
+    public event Action<Role> NewRoleAssigned;
+    public Role? Role { get; private set; } = null;
+    public void SetRole(Role newRole)
+    {
+        Role = newRole;
+        NewRoleAssigned?.Invoke(newRole);
+    }
+
     /// <summary>
     /// The first passed object is the mediator of the killed character, the second is the killer
     /// </summary>
-    public event Action<CharacterMediator, CharacterMediator> Killed;
+    public event Action<CharacterMediator, CharacterMediator> Killed, ScoredAKill;
     public event Action<CharacterMediator> Died, Respawned;
     public event Action Disconnected;
 
     private void Awake()
     {
-        deactivateInternal = new(GameObject go, bool wasActive)[deactivateOnDeath.Length];
-        for (int i = 0; i < deactivateOnDeath.Length; i++)
-        {
-            deactivateInternal[i] = (deactivateOnDeath[i], deactivateOnDeath[i].activeSelf);
-        }
+        Ascendance = new(this);
+        BloodManager?.Init(this);
     }
 
     public void Die(CharacterMediator killer)
     {
         Killed?.Invoke(this, killer);
         Died?.Invoke(this);
+        killer.RequestGotAKillEventInvoke(this);
 
         if (!IsNPC)
         {
             // respawn after a delay if the match has not started yet
-            StartCoroutine(GameStateManager.Instance.WarmUpRespawn(this));
+            RespawnManager.Instance.RequestRespawn(this);
         }
         SetActivity(false);
     }
@@ -77,22 +82,11 @@ public class CharacterMediator : MonoBehaviour, IResettable
         {
             HealthComponent.CurrentHealth.Set(0);
         }
-        for (int i = 0; i < deactivateInternal.Length; i++)
-        {
-            // double check if the gameObject was active before
-            // enemy vision gets deactivated, and should not go back to being active
-            if (!active)
-            {
-                deactivateInternal[i].wasActive = deactivateInternal[i].go.activeSelf;
-            }
 
-            if (deactivateInternal[i].wasActive)
-            {
-                deactivateInternal[i].go.SetActive(active);
-            }
 
-        }
+        characterPhysics.SetActive(active);
 
+        PlayerVision?.ChangeActivityIfPlayerOrAlly(active);
 
         if (active)
         {
@@ -114,7 +108,17 @@ public class CharacterMediator : MonoBehaviour, IResettable
         HealthComponent.Reset();
         AbilityManager?.Reset();
         MovementController?.Reset();
-        PlayerVision?.Reset();
+        AnimationController?.Reset();
+        //PlayerVision?.Reset();
+
+        Ascendance?.Reset();
+        BloodManager?.Reset();
+
+        if (SpriteRenderer != null)
+        {
+            SpriteRenderer.color = Color.white;
+        }
+
         Respawned?.Invoke(this);
     }
 
@@ -123,16 +127,30 @@ public class CharacterMediator : MonoBehaviour, IResettable
         Disconnected?.Invoke();
     }
 
-    #region Utilities
-    public bool InRange(CharacterMediator otherMediator, float maxRange)
+    public void RequestGotAKillEventInvoke(CharacterMediator victim)
     {
-        return InRange(otherMediator.GetPosition(), maxRange);
+        ScoredAKill?.Invoke(victim, this);
     }
 
-    public bool InRange(Vector2 position, float maxRange)
+    #region Utilities
+    public bool InRange(CharacterMediator otherMediator, float maxRange, bool ignoreFloors)
     {
-        return Vector2.Distance(GetPosition(), position) <= maxRange;
+        return InRange(otherMediator.GetPosition(), maxRange, ignoreFloors);
     }
+
+    public bool InRange(Vector2 position, float maxRange, bool ignoreFloors)
+    {
+
+        if (!ignoreFloors)
+        {
+            return InRange(position, maxRange);
+        }
+
+        return InRange(position, maxRange)
+            || InRange(FloorUtilities.GetPositionOnTheOtherFloor(position), maxRange);
+    }
+
+    private bool InRange(Vector2 position, float maxRange) => Vector2.Distance(GetPosition(), position) <= maxRange;
 
     public bool LookingAt(CharacterMediator otherMediator, float angle)
     {

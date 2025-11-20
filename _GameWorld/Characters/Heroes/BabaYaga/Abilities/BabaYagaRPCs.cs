@@ -22,7 +22,7 @@ public class BabaYagaRPCs : AbilityRPCs
         {
             if (character == caster) continue;
 
-            if (!caster.InRange(character, curse.Range)) continue;
+            if (!caster.InRange(character, curse.Range, true)) continue;
             if (!caster.LookingAt(character, curse.ArcDegrees)) continue;
 
             targetsHit.Add(character);
@@ -70,31 +70,32 @@ public class BabaYagaRPCs : AbilityRPCs
     {
         var mediator = CharacterManager.Instance.LocalPlayerMediator;
         if (!mediator.IsAlive) return;
-        
-        var duration = curse.Duration;
-        mediator.AbilityManager.DisableAbilities(duration);
-        mediator.PlayerVision.SetVisionRangeProportional(curse.NearSightedMultiplier);
 
-        StartCoroutine(CureCurse(mediator, duration));
-
-    }
-
-    private IEnumerator CureCurse(CharacterMediator mediator, float duration)
-    {
-        yield return new WaitForSeconds(duration);
-        if (mediator.IsAlive)
-        {
-            mediator.PlayerVision.Reset();
-        }
+        new Modifier
+        (
+            mediator,
+            new Curse.CurseModifier(curse.NearSightedMultiplier),
+            curse.Duration,
+            1,
+            curse.Icon
+        );
     }
 
     [Rpc(SendTo.Everyone)]
     private void ClientSweepRPC(ulong casterId)
     {
         var caster = CharacterManager.Instance.Mediators[casterId];
+        GetDust(caster);
+        var dustOtherFloor = GetDust(caster);
+        dustOtherFloor.transform.position = FloorUtilities.GetPositionOnTheOtherFloor(dustOtherFloor.transform.position);
+    }
+
+    private MonoBehaviour GetDust(CharacterMediator caster)
+    {
         var dust = Instantiate(curse.SweepGO, caster.GetPosition(),
             caster.RotationController.transform.rotation);
         dust.transform.localScale = Vector2.one * curse.Range;
+        return dust;
     }
 
     [Rpc(SendTo.Server)]

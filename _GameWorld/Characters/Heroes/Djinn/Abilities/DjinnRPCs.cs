@@ -50,10 +50,14 @@ public class DjinnRPCs : AbilityRPCs
         mediator.Gun.ChannelingManager.RequestInterrupt();
         mediator.Gun.ShootManager.Reset();
 
-        var multiplier = 1f + wish.MoveSpeedMultiplier;
-        mediator.MovementController.AdjustMovementMultiplier(multiplier);
-        await Task.Delay((int)(1000f * wish.Duration));
-        mediator.MovementController.AdjustMovementMultiplier(-multiplier);
+        var modifier = new Modifier
+        (
+            mediator,
+            new FulfilWish.WishModifier(wish.MoveSpeedMultiplier),
+            wish.Duration,
+            1,
+            wish.Icon
+        );
     }
 
     [Rpc(SendTo.Everyone)]

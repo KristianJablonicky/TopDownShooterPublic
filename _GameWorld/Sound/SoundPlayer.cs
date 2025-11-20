@@ -9,19 +9,24 @@ public class SoundPlayer : MonoBehaviour
     private AudioSourceMediator audioSourceInstance;
     private CharacterMediator localPlayer;
 
+
+    private bool setUp = false;
     private void Start()
     {
+        if (setUp) return;
         baseVolume *= DataStorage.GetVolume();
 
         var localPlayerInstance = CharacterManager.Instance.LocalPlayerMediator;
         if (localPlayerInstance == null) // Local player not yet spawned
         {
-            PlayerNetworkInput.OwnerSpawned += PlayerInstanceObtained;
+            PlayerNetworkInput.PlayerSpawned += PlayerInstanceObtained;
         }
         else // Local player already spawned - multiplayer setting
         {
             PlayerInstanceObtained(localPlayerInstance);
         }
+
+        setUp = true;
     }
 
     private void PlayerInstanceObtained(CharacterMediator instance)
@@ -40,11 +45,13 @@ public class SoundPlayer : MonoBehaviour
         }
 
 
-        localPlayer.MovementController.FloorChanged += newFloor =>
-        {
-            FloorUtilities.ApplyYOffset(audioSourceInstance.transform, newFloor);
-        };
+        localPlayer.MovementController.FloorChanged += OnFloorChanged;
 
+    }
+
+    private void OnFloorChanged(Floor newFloor)
+    {
+        FloorUtilities.ApplyYOffset(audioSourceInstance.transform, newFloor);
     }
 
     public void RequestPlaySound(Transform transform, AudioClip[] clips, bool randomizePitch)
@@ -67,6 +74,8 @@ public class SoundPlayer : MonoBehaviour
             return;
         }
 
+        if (localPlayer == null) Start();
+
         var localPlayerFloor = localPlayer.CurrentFloor;
         var soundOnThisFloor = localPlayerFloor == FloorUtilities.GetCurrentFloor(transform);
         Vector2 targetPosition = transform.position;
@@ -87,12 +96,19 @@ public class SoundPlayer : MonoBehaviour
         );
     }
 
-    private void OnDestroy()
+    private async void OnDestroy()
     {
         if (audioSourceInstance != null)
         {
+            await TaskExtensions.Delay(3f);
+            if (audioSourceInstance == null) return;
             Destroy(audioSourceInstance.gameObject);
         }
-        PlayerNetworkInput.OwnerSpawned -= PlayerInstanceObtained;
+        if (localPlayer != null)
+        {
+            localPlayer.MovementController.FloorChanged -= OnFloorChanged;
+        }
+
+        PlayerNetworkInput.PlayerSpawned -= PlayerInstanceObtained;
     }
 }

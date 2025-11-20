@@ -1,8 +1,5 @@
 using System;
 using System.Collections;
-using System.Drawing;
-using TMPro;
-using Unity.Netcode;
 using UnityEngine;
 
 public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
@@ -10,22 +7,20 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
     [SerializeField] private Transform[] spawnLocationsDefenders, spawnLocationsAttackers;
     [SerializeField] private float roundTime = 90f, roundStartDelay = 3f;
 
-    [SerializeField] private ObservableVariableBinder roundTimerUI;
-    [SerializeField] private TMP_Text currentRoleText;
-
     private GameStateManagerRPCs RPCs;
-
+    private int roundNumber = 0;
 
     public bool GameInProgress { get; private set; }
     public event Action GameStarted, NewRoundStarted, RoundEnded;
     public event Action<bool> RoundWon, GameWon;
+    public event Action<int, TeamData> RoundNumberWonByTeam;
     public AttackersTimer AttackersTimer { get; private set; }
 
     private TeamData attackers, defenders;
 
 
     private bool defenders1stPosBlocked, attackers1stPosBlocked;
-    private bool roundDecided = false;
+    public bool RoundDecided { get; private set; } = false;
 
     private CharacterManager manager;
     protected override void OverriddenAwake() => enabled = false;
@@ -49,43 +44,12 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
 
         AttackersTimer = new(roundTime);
         AttackersTimer.TimeRanOut += OnTimeRanOut;
-        roundTimerUI.Bind(AttackersTimer.TimeRemaining, false);
 
-        attackers = manager.Teams[Team.Orange];
-        defenders = manager.Teams[Team.Cyan];
-
-        SetUpColors();
-
-        SetUpObjectives();
+        defenders = manager.Teams[Team.Orange];
+        attackers = manager.Teams[Team.Cyan];
 
         GameStarted?.Invoke();
-        StartNewRound(false);
-    }
-
-    private void SetUpColors()
-    {
-        var colors = CommonColors.Instance;
-
-        currentRoleText.color = CommonColors.GetTeamColor((int)manager.LocalPlayer.Team.Name);
-        /*
-        static void SetColors(TeamData team, Color color)
-        {
-            foreach (var player in team.Players)
-            {
-                player.Mediator.SpriteRenderer.color = color;
-            }
-        }
-        SetColors(attackers, colors.Orange * 1.5f);
-        SetColors(defenders, colors.Cyan   * 2.5f);
-        */
-    }
-
-    private void SetUpObjectives()
-    {
-        DefenderObjectiveManager.Instance.ObjectiveActivated += objective =>
-        {
-            currentRoleText.text += $" ({objective.Location})";
-        };
+        StartNewRound();
     }
 
 
@@ -95,10 +59,10 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         var teamMate = losingTeam.GetTeamMate(killedPlayer.playerData);
 
         UpdateScores(killedPlayer, killer, teamMate.Mediator);
-        if (!roundDecided && !teamMate.Mediator.IsAlive)
+        if (!RoundDecided && !teamMate.Mediator.IsAlive)
         {
             // both players are dead, round lost for this team
-            RoundOver(losingTeam, manager.LocalPlayer.Team != losingTeam);
+            RoundOver(losingTeam.EnemyTeamData);
         }
     }
 
@@ -107,7 +71,7 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         if (killer != null && killer != killedPlayer)
         {
             int adjustment = killer != killedPlayerTeamMate ? 1 : -1;
-            killer.playerData.PlayerScore.Kills += adjustment;
+            killer.playerData.PlayerScore.Kills.Adjust(adjustment);
         }
         killedPlayer.playerData.PlayerScore.Deaths++;
 
@@ -115,41 +79,35 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
 
     private void OnTimeRanOut()
     {
-        foreach(var player in attackers.Players)
-        {
-            if (player.Mediator.IsAlive && player.Mediator.IsLocalPlayer)
-            {
-                player.Mediator.HealthComponent.TakeLethalDamage();
-            }
-        }
+        RoundOver(defenders);
         enabled = false;
     }
 
-    private void RoundOver(TeamData losingTeam, bool localPlayerWon)
+    private async void RoundOver(TeamData winningTeam)
     {
-        var winningTeam = losingTeam.EnemyTeamData;
-        winningTeam.AddWin(winningTeam.Players[0].Mediator.role);
+        winningTeam.AddWin();
+        
+        var localPlayerWon = winningTeam.LocalPlayersTeam;
 
         ShowNotification(winningTeam, localPlayerWon, "Round won!", "Round lost!");
 
-        roundDecided = true;
+        RoundDecided = true;
+
+        enabled = false;
+        RoundEnded?.Invoke();
+        RoundWon?.Invoke(winningTeam.LocalPlayersTeam);
+        RoundNumberWonByTeam?.Invoke(roundNumber, winningTeam);
 
         if (HasGameEnded(winningTeam, localPlayerWon)) return;
 
-        StartCoroutine(EndRound(localPlayerWon));
+        await TaskExtensions.Delay(roundStartDelay);
+        StartNewRound();
     }
 
-    public void ObjectiveCaptured()
+    public void ObjectiveCaptured(TeamData teamData)
     {
-        if (roundDecided) return;
-        RoundOver(defenders,
-            CharacterManager.Instance.LocalPlayerMediator.role == Role.Attacker
-        );
-    }
-
-    public void PickObjective(uint objectiveId)
-    {
-        RPCs.PickObjectiveRPC(objectiveId);
+        if (RoundDecided) return;
+        RoundOver(teamData);
     }
 
     private void ShowNotification(TeamData team, bool won, string winMessage, string lossMessage)
@@ -159,15 +117,6 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
             won ? winMessage : lossMessage,
             color
         );
-    }
-
-    private IEnumerator EndRound(bool won)
-    {
-        enabled = false;
-        RoundEnded?.Invoke();
-        RoundWon?.Invoke(won);
-        yield return new WaitForSeconds(roundStartDelay);
-        StartNewRound(true);
     }
     private bool HasGameEnded(TeamData winningTeam, bool localPlayerWon)
     {
@@ -189,15 +138,19 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         GameWon?.Invoke(localPlayerWon);
     }
 
-    public void StartNewRound(bool switchTeams)
+    public void StartNewRound()
     {
         enabled = true;
         AttackersTimer.Reset();
 
-        if (switchTeams)
+        if (roundNumber == Constants.roundsToWinMatch - 1)
         {
             (defenders, attackers) = (attackers, defenders);
         }
+        roundNumber++;
+        
+        attackers.CurrentRole = Role.Attacker;
+        defenders.CurrentRole = Role.Defender;
 
         defenders1stPosBlocked = false;
         attackers1stPosBlocked = false;
@@ -206,7 +159,7 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         {
             SetUpPlayer(player);
         }
-        roundDecided = false;
+        RoundDecided = false;
         NewRoundStarted?.Invoke();
     }
 
@@ -219,35 +172,13 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         var spawns = isDefender ? spawnLocationsDefenders : spawnLocationsAttackers;
         var role = isDefender ? Role.Defender : Role.Attacker;
 
-        player.Mediator.role = role;
+        player.Mediator.SetRole(role);
         var index = firstPosBlocked ? 1 : 0;
         firstPosBlocked = true;
 
         if (player.Mediator.IsLocalPlayer)
         {
             player.Mediator.MovementController.SetPosition(spawns[index].position, null);
-            currentRoleText.text = role.ToString();
-        }
-    }
-
-    public IEnumerator WarmUpRespawn(CharacterMediator mediator)
-    {
-        if (GameInProgress) yield break;
-        yield return new WaitForSeconds(3f);
-        if (GameInProgress) yield break;
-
-        if (mediator == null) yield break;
-
-        mediator.Reset();
-        var radius = UnityEngine.Random.Range(2f, 5f);
-
-        if (mediator.IsLocalPlayer)
-        {
-            mediator.MovementController.SetPosition(
-                mediator.GetPosition() +
-                UnityEngine.Random.insideUnitCircle *
-                radius
-            );
         }
     }
     public void SetRPCs(GameStateManagerRPCs RPCs) => this.RPCs = RPCs;
@@ -263,7 +194,6 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         {
             AttackersTimer = new(trainingDuration);
             AttackersTimer.TimeRanOut += () => TrainingTimeOut(manager);
-            roundTimerUI.Bind(AttackersTimer.TimeRemaining, false);
         }
         
         AttackersTimer.Reset();

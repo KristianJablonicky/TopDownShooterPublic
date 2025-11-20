@@ -66,7 +66,7 @@ public class TeamSelector : SingletonMonoBehaviour<TeamSelector>
         cyan = new();
         foreach (var character in characterManager.Mediators.Values)
         {
-            if (character.GetPosition().x < 0)
+            if (character.GetPosition().y > -Constants.floorYOffset)
             {
                 orange.Add(character.PlayerId);
             }

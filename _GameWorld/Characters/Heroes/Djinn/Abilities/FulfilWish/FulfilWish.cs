@@ -28,12 +28,37 @@ public class FulfilWish : MovementAbility
     private void CastEffect()
     {
         OnCast();
-        rpcs.remainingWishes.Adjust(-1);
+        rpcs.remainingWishes--;
         rpcs.RequestWishRPC(owner.PlayerId);
     }
 
     protected override string _GetAbilitySpecificStats()
     {
         return $"Heal amount: {HealAmount}\nMovement speed bonus: {Mathf.RoundToInt(MoveSpeedMultiplier * 100f)}%\nDuration: {Duration}s\nChannel time: {channelDuration}";
+    }
+
+    public class WishModifier : IModifierStrategy
+    {
+        private readonly float movementSpeedMultiplier;
+        public WishModifier(float movementSpeedMultiplier)
+        {
+            this.movementSpeedMultiplier = 1f + movementSpeedMultiplier;
+        }
+
+        public void Apply(CharacterMediator owner, Modifier modifier)
+        {
+            owner.MovementController.AdjustMovementMultiplier(movementSpeedMultiplier);
+        }
+
+        public void Expire(CharacterMediator owner)
+        {
+            owner.MovementController.AdjustMovementMultiplier(-movementSpeedMultiplier);
+        }
+
+        public bool ExpireOnRoundEnd() => true;
+
+        public string GetDescription() => $"Moving {Mathf.FloorToInt(100f * (movementSpeedMultiplier - 1f))}% faster.";
+
+        public bool RealTimeDuration() => true;
     }
 }

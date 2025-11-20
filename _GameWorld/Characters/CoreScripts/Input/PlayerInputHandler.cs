@@ -38,7 +38,8 @@ public class PlayerInputHandler : MonoBehaviour
         enabled = false;
         updateAction = UpdateInputAlive;
         // TODO: remove SetActive(true); once a smarter approach towards death system is chosen
-        mediator.Died += (_) => { gameObject.SetActive(true); updateAction = UpdateInputPostMortem; };
+        mediator.Died += (_) => { gameObject.SetActive(true); updateAction = null; };
+        mediator.Ascendance.SpiritLeft += (_) => { updateAction = UpdateInputPostMortem; };
         mediator.Respawned += (_) => updateAction = UpdateInputAlive;
     }
 
@@ -62,7 +63,7 @@ public class PlayerInputHandler : MonoBehaviour
 
     private void Update()
     {
-        updateAction();
+        updateAction?.Invoke();
     }
     public void UpdateInputAlive()
     {
@@ -74,6 +75,7 @@ public class PlayerInputHandler : MonoBehaviour
 #if UNITY_EDITOR
         UpdateDebug();
 #endif
+        UpdateObjectiveInput();
 
         UpdateAlwaysAvailable();
     }
@@ -109,8 +111,8 @@ public class PlayerInputHandler : MonoBehaviour
 
     private void UpdateMovement()
     {
-        
-        ChangeOnHoldState(KeyCode.LeftShift, movementController.Walk);
+        // TODO: reconsider adding in walk
+        //ChangeOnHoldState(KeyCode.LeftShift, movementController.Walk);
 
         float moveX = Input.GetAxisRaw("Horizontal");
         float moveY = Input.GetAxisRaw("Vertical");
@@ -272,7 +274,8 @@ public class PlayerInputHandler : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
-            gun.Reload();
+            if (!gun.CanReload()) return;
+            networkInput.RequestReloadRpc();
         }
 
         if (pingReady && Input.GetKeyDown(KeyCode.V))
@@ -306,6 +309,17 @@ public class PlayerInputHandler : MonoBehaviour
     }
 
 
+    private void UpdateObjectiveInput()
+    {
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            if (DefenderObjective.Instance.CanSacrifice(mediator))
+            {
+                networkInput.RequestObjectiveSacrifice();
+            }
+        }
+    }
+
     private void UpdateAlwaysAvailable()
     {
         ChangeOnHoldState(KeyCode.Tab, ScoreBoard.Instance.ChangeState);
@@ -318,14 +332,20 @@ public class PlayerInputHandler : MonoBehaviour
 
     private void UpdateDebug()
     {
-        if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(10, mediator);
-        if (Input.GetKeyDown(KeyCode.F))
+        if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(100, DamageTag.Neutral, mediator);
+        if (Input.GetKeyDown(KeyCode.H))
         {
+
+            mediator.playerData.PlayerScore.Kills--;
 
             new Modifier(mediator,
                 new ObjectiveVitalityModifier(), 1f, 2, null);
             new Modifier(mediator,
                 new ObjectiveCoolDownModifier(), 1f, 2, null);
+        }
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            GameStateManager.Instance.ObjectiveCaptured(mediator.playerData.Team);
         }
     }
 }

@@ -7,7 +7,7 @@ public class AmmoUI : MonoBehaviour
     private ShootManager manager;
     private void Awake()
     {
-        PlayerNetworkInput.OwnerSpawned += OnOwnerSpawn;
+        PlayerNetworkInput.PlayerSpawned += OnOwnerSpawn;
     }
 
     private void OnOwnerSpawn(CharacterMediator mediator)

@@ -33,7 +33,7 @@ public class ShootManager : IUpdatable, IResettable
             && currentCoolDown <= 0f
             && !channel.Channeling)
         {
-            CurrentAmmo.Adjust(-1);
+            CurrentAmmo--;
             currentCoolDown = coolDown;
             if (CurrentAmmo == 0)
             {
@@ -46,16 +46,15 @@ public class ShootManager : IUpdatable, IResettable
         return ShootResult.DidNotShoot;
     }
 
+    public bool CanReload() => CurrentAmmo != config.capacity && !channel.Channeling;
     public void Reload()
     {
-        if (CurrentAmmo == config.capacity
-            || channel.Channeling) return;
-
         channel.StartChanneling(
             config.reloadDuration * reloadSpeedMultiplier,
             () => CurrentAmmo.Set(config.capacity),
             true
         );
+        channel.AlsoPlayAnAnimation(Animations.Reload);
     }
 
     public void IUpdate(float dt)

@@ -28,6 +28,16 @@ public class Modifier
 
         strategy.Apply(owner, this);
         owner.Modifiers.AddModifier(this);
+
+        if (strategy.ExpireOnRoundEnd())
+        {
+            GameStateManager.Instance.RoundEnded += Expire;
+        }
+
+        if (strategy.RealTimeDuration())
+        {
+            Updater.Instance.Updated += OnUpdate;
+        }
     }
 
     private void OnDurationChanged(float newDuration)
@@ -40,10 +50,20 @@ public class Modifier
 
     private void Expire()
     {
+        if (strategy.ExpireOnRoundEnd())
+        {
+            GameStateManager.Instance.RoundEnded -= Expire;
+        }
+        if (strategy.RealTimeDuration())
+        {
+            Updater.Instance.Updated -= OnUpdate;
+        }
         strategy.Expire(owner);
         Expired?.Invoke();
         Expired = null;
     }
+
+    private void OnUpdate(float dt) => Duration.Adjust(-dt);
 
     public Type ModifierType => strategy.GetType();
     public string Description => strategy.GetDescription();

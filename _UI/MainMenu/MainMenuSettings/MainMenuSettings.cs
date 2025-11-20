@@ -4,7 +4,7 @@ using UnityEngine.UI;
 public class MainMenuSettings : MonoBehaviour
 {
     [SerializeField] private Slider volumeSlider;
-    [SerializeField] private Toggle relativeSounds;
+    [SerializeField] private Toggle relativeSounds, relativeCrosshair;
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip[] sampleClips;
 
@@ -16,6 +16,8 @@ public class MainMenuSettings : MonoBehaviour
         var storage = DataStorage.Instance;
         volumeSlider.value = storage.GetInt(DataKeyInt.SettingsVolume);
         relativeSounds.isOn = storage.GetInt(DataKeyInt.SettingsRelativeSounds) == 1;
+        relativeCrosshair.isOn = storage.GetInt(DataKeyInt.SettingsRelativeCrosshair) == 1;
+
 
         volumeSlider.onValueChanged.AddListener(OnSliderDragged);
         currentTimeWindow = intervalBetweenSounds * 0.5f;
@@ -23,7 +25,7 @@ public class MainMenuSettings : MonoBehaviour
 
     private void OnSliderDragged(float volume)
     {
-        audioSource.volume = volume / 100f * Constants.maxVolume * Constants.nonSpatialVolumeMultiplier;
+        audioSource.volume = volume / 100f * Constants.maxVolume;// * Constants.nonSpatialVolumeMultiplier;
         currentTimeWindow += Time.deltaTime;
         if (currentTimeWindow >= intervalBetweenSounds)
         {
@@ -38,5 +40,6 @@ public class MainMenuSettings : MonoBehaviour
         var storage = DataStorage.Instance;
         storage.SetInt(DataKeyInt.SettingsVolume, (int)volumeSlider.value);
         storage.SetInt(DataKeyInt.SettingsRelativeSounds, relativeSounds.isOn ? 1 : 0);
+        storage.SetInt(DataKeyInt.SettingsRelativeCrosshair, relativeCrosshair.isOn ? 1 : 0);
     }
 }

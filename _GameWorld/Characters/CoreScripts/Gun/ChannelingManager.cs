@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 public class ChannelingManager : IUpdatable, IResettable
 {
@@ -6,12 +7,16 @@ public class ChannelingManager : IUpdatable, IResettable
     public float TimeTotal { get; private set; } = 1f;
     public bool Channeling { get; private set; }
     public bool Interruptible { get; private set; }
+
+    private AnimationController animationController;
+
     private bool allowActionCompleteOnInterruption;
     private Action actionOnExit;
-    public ChannelingManager()
+    public ChannelingManager(AnimationController animationController)
     {
         TimeRemaining = new(0f);
         Channeling = false;
+        this.animationController = animationController;
     }
 
     public void StartChanneling(float duration, Action actionOnExit)
@@ -21,9 +26,27 @@ public class ChannelingManager : IUpdatable, IResettable
     }
     public void StartChannelingStandingStill(float duration, Action actionOnExit, CharacterMediator mediator, bool interruptible)
     {
-        mediator.MovementController.MovementEnabled = false;
-        Action enableMovement = () => mediator.MovementController.MovementEnabled = true;
-        
+        StartChannelingSlowedDown(duration, actionOnExit, mediator, 0f, interruptible);
+    }
+
+    public void StartChannelingSlowedDown(float duration, Action actionOnExit, CharacterMediator mediator, float movementSpeedMultiplier, bool interruptible)
+    {
+        Action enableMovement;
+        if (movementSpeedMultiplier == 0f)
+        {
+            mediator.MovementController.MovementEnabled = false;
+            enableMovement = () => mediator.MovementController.MovementEnabled = true;
+        }
+        else
+        {
+            // transform 0.5f to 2f, so that the movespeed is halved
+            if (movementSpeedMultiplier < 1f) movementSpeedMultiplier = 1f / movementSpeedMultiplier;
+
+            mediator.MovementController.AdjustMovementMultiplier(-movementSpeedMultiplier);
+            enableMovement = () => mediator.MovementController.AdjustMovementMultiplier(movementSpeedMultiplier); ;
+        }
+
+
         if (interruptible)
         {
             StartChanneling(duration, enableMovement + actionOnExit, false);
@@ -65,6 +88,11 @@ public class ChannelingManager : IUpdatable, IResettable
                 actionOnExitTemp?.Invoke();
             }
         }
+    }
+
+    public void AlsoPlayAnAnimation(Animations animation)
+    {
+        animationController.PlayAnimation(animation, TimeTotal);
     }
 
     public void Reset()

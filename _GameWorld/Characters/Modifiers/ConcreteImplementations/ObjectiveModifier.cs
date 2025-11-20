@@ -17,4 +17,8 @@ public abstract class ObjectiveModifier : IModifierStrategy
     protected abstract string GetDescriptionInternal();
 
     public string GetDescription() => GetDescriptionInternal();
+
+    public bool RealTimeDuration() => false;
+
+    public bool ExpireOnRoundEnd() => false;
 }

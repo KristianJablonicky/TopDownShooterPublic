@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class RecruitAbilityRPCs : AbilityRPCs
 {
+    [SerializeField] private SmokeGameObject smoke;
     [SerializeField] private Bomb bomb;
     [SerializeField] private DashPostMortem dashPostMortem;
 
@@ -45,24 +46,15 @@ public class RecruitAbilityRPCs : AbilityRPCs
         ownerMediator.Gun.ApplyRecoil(bomb.RecoilMultiplierOnHit);
     }
 
-
-
-
     [Rpc(SendTo.Server)]
-    public void RequestAllyDashRPC(ulong teamMate, Vector2 velocity)
+    public void RequestSmokeRPC(Vector2 position)
     {
-        AllyDashRPC(teamMate, velocity);
+        ClientSmokeRPC(position);
     }
 
     [Rpc(SendTo.Everyone)]
-    private void AllyDashRPC(ulong teamMate, Vector2 velocity)
+    private void ClientSmokeRPC(Vector2 position)
     {
-        if (NetworkManager.Singleton.LocalClientId == teamMate)
-        {
-            dashPostMortem.ExecuteDash(
-                CharacterManager.Instance.Mediators[teamMate],
-                velocity
-            );
-        }
+        Instantiate(smoke, position, Quaternion.identity);
     }
 }

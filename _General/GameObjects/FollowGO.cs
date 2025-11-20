@@ -6,6 +6,13 @@ public class FollowGO : MonoBehaviour
 
     private void LateUpdate()
     {
-        transform.position = followedGO.transform.position;
+        if (followedGO != null)
+        {
+            transform.position = followedGO.transform.position;
+        }
+        else
+        {
+            enabled = false;
+        }
     }
 }

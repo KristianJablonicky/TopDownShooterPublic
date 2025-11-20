@@ -38,12 +38,12 @@ public class Stairs : MonoBehaviour
     {
         if (collision.gameObject.TryGetComponent(out HealthComponent healthComponent))
         {
-            var mediator = healthComponent.mediator;
+            var mediator = healthComponent.Mediator;
             if (!mediator.IsLocalPlayer) return;
 
-            var movementController = healthComponent.mediator.MovementController;
+            var movementController = healthComponent.Mediator.MovementController;
             movementController.SetPosition(
-                healthComponent.mediator.GetPosition() + yOffset,
+                healthComponent.Mediator.GetPosition() + yOffset,
                 stairsLeadToFloor
             );
         }

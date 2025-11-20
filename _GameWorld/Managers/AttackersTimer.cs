@@ -1,19 +1,23 @@
 using System;
+using UnityEngine;
 
 public class AttackersTimer : IUpdatable, IResettable
 {
     private readonly float maxTime;
-    public ObservableValue<float> TimeRemaining { get; private set; }
+    private float _timeRemaining;
+    public ObservableValue<int> TimeRemaining { get; private set; }
     public Action TimeRanOut;
     public AttackersTimer(float maxTime)
     {
         this.maxTime = maxTime;
-        TimeRemaining = new(maxTime);
+        _timeRemaining = maxTime;
+        TimeRemaining = new((int)maxTime);
     }
     public void IUpdate(float dt)
     {
-        TimeRemaining.Adjust(-dt, floor: 0f);
-        if (TimeRemaining == 0f)
+        _timeRemaining = Mathf.Max(_timeRemaining - dt, 0f);
+        TimeRemaining.Set(Mathf.CeilToInt(_timeRemaining));
+        if (_timeRemaining == 0f)
         {
             TimeRanOut?.Invoke();
         }
@@ -21,6 +25,7 @@ public class AttackersTimer : IUpdatable, IResettable
 
     public void Reset()
     {
-        TimeRemaining.Set(maxTime);
+        _timeRemaining = maxTime;
+        TimeRemaining.Set((int)maxTime);
     }
 }

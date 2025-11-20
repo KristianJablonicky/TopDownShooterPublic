@@ -73,5 +73,23 @@ public class ObservableValue<T> where T : struct, IComparable, IConvertible
         return observable.Get();
     }
 
+    private void Increment(double delta)
+    {
+        double v = Convert.ToDouble(_value) + delta;
+        Set((T)Convert.ChangeType(v, typeof(T)));
+    }
+
+    public static ObservableValue<T> operator ++(ObservableValue<T> observable)
+    {
+        observable.Increment(+1);
+        return observable;
+    }
+
+    public static ObservableValue<T> operator --(ObservableValue<T> observable)
+    {
+        observable.Increment(-1);
+        return observable;
+    }
+
     public override string ToString() => _value.ToString();
 }

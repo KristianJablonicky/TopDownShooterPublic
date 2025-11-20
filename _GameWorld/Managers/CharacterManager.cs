@@ -77,12 +77,13 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
             {
 #if UNITY_EDITOR
                 var connectedPlayers = NetworkManager.Singleton.ConnectedClientsList.Count;
-                var x = 6f;
+                var x = 4f;
                 var direction = connectedPlayers % 2 == 0 ? -1f : 1f;
                 var y = connectedPlayers < 3 ? -1f : 1f;
-                var spawnPos = new Vector2(x * direction, y);
+                var spawnPos = new Vector2(x * direction, y * 5f - 75f);
+
 #else
-                var spawnPos = (UnityEngine.Random.insideUnitSphere * 5f);
+                var spawnPos = RespawnManager.Instance.GetSpawnPoint(uID);
 #endif
                 character.MovementController.SetPosition(spawnPos);
             }
@@ -103,12 +104,13 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
 
     public void AllPlayersPickedATeam(ulong[] playerIDs)
     {
-        
-        foreach (var id in playerIDs)
+        for (int i = 0; i < playerIDs.Length; i++)
         {
+            var id = playerIDs[i];
             var mediator = Mediators[id];
 
-            var teamEnum = mediator.GetPosition().x < 0f ? Team.Orange : Team.Cyan;
+            // IDs are sorted by TeamSelector (orange1, orange2, cyan1, cyan2)
+            var teamEnum = i < Constants.maxPlayerCount / 2 ? Team.Orange : Team.Cyan;
             var team = Teams[teamEnum];
 
             var newPlayerData = new PlayerData(
@@ -121,6 +123,7 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
             if (mediator.IsLocalPlayer)
             {
                 LocalPlayer = newPlayerData;
+                team.LocalPlayersTeam = true;
             }
 
             PlayerData[id] = newPlayerData;

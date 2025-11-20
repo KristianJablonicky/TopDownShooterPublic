@@ -77,7 +77,7 @@ public class MovementController : MonoBehaviour, IResettable
         RigidBody.AddForce(moveVelocity);
     }
 
-    public float GetCurrentSpeed() => RigidBody.linearVelocity.magnitude / 0.375f;
+    public float GetCurrentSpeed() => RigidBody.linearVelocity.magnitude / 3.75f; // <0; 1)
 
     public void SetPosition(float x, float y, Floor? newFloor)
     {

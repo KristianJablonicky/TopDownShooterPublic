@@ -22,17 +22,13 @@ public class MainMenuManager : SingletonMonoBehaviour<MainMenuManager>
         {
             lastMatchResults.text = $"{storage.disconnectReason}\nLast Match Results:\n{storage.lastScoreBoardState}";
         }
-        else if (storage.GetGameMode() == GameMode.SinglePlayer)
-        {
-            UpdateHighScore();
-        }
         else if (storage.disconnectReason != null)
         {
             lastMatchResults.text = storage.disconnectReason;
         }
         else
         {
-            lastMatchResults.text = string.Empty;
+            UpdateHighScore();
         }
 
         playerNameInput.text = storage.GetString(Name);

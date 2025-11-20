@@ -14,16 +14,16 @@ public class HereSelectionButton : MonoBehaviour
         var pickedHero = DataStorage.Instance.GetInt(DataKeyInt.PickedHero);
         if ((int)toolkit.DatabaseEntry == pickedHero)
         {
-            UpdateUI();
+            UpdateUI(false);
         }
     }
     public void OnClick()
     {
         DataStorage.Instance.SetInt(DataKeyInt.PickedHero, (int)toolkit.DatabaseEntry);
-        UpdateUI();
+        UpdateUI(true);
     }
 
-    private void UpdateUI()
+    private void UpdateUI(bool clicked)
     {
         for (int i = 0; i < abilityUIButtons.Length; i++)
         {
@@ -34,6 +34,9 @@ public class HereSelectionButton : MonoBehaviour
         heroDescription.text = toolkit.HeroDescription;
         abilityDescription.text = "";
 
-        MainMenuManager.Instance.UpdateHighScore();
+        if (clicked)
+        {
+            MainMenuManager.Instance.UpdateHighScore();
+        }
     }
 }

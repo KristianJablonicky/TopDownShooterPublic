@@ -25,6 +25,13 @@ public static class FloorUtilities
         return position + (Vector2.up * yOffset);
     }
 
+    public static Vector2 GetPositionOnTheOtherFloor(Vector2 position)
+    {
+        var floor = GetCurrentFloor(position);
+        floor = GetDifferentFloor(floor);
+        return GetPositionY(position, floor);
+    }
+
     public static float? GetYOffset(AimDirection direction, Floor currentFloor)
     {
         if (currentFloor == Floor.First && direction == AimDirection.Down

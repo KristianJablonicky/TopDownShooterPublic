@@ -111,7 +111,7 @@ public class DataStorage
         return $"{key}_{(int)hero}";
     }
 
-    public static bool IsSinglePlayer() => Instance.GetGameMode() == GameMode.SinglePlayer;
+    public static bool IsSinglePlayer => Instance.GetGameMode() == GameMode.SinglePlayer;
 
     public static float GetVolume()
     {
@@ -134,7 +134,8 @@ public enum DataKeyInt
     Deaths,
     HighScore,
     SettingsVolume,
-    SettingsRelativeSounds
+    SettingsRelativeSounds,
+    SettingsRelativeCrosshair
 }
 
 public enum GameMode

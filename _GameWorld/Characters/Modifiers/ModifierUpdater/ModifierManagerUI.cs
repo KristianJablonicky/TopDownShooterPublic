@@ -7,7 +7,7 @@ public class ModifierManagerUI : MonoBehaviour
 
     private void Start()
     {
-        PlayerNetworkInput.OwnerSpawned += OnOwnerSpawn;
+        PlayerNetworkInput.PlayerSpawned += OnOwnerSpawn;
     }
 
     private void OnOwnerSpawn(CharacterMediator mediator)

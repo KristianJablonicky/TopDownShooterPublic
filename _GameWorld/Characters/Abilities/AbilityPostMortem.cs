@@ -7,7 +7,7 @@ public abstract class AbilityPostMortem : ActiveAbility
     public void Init(CharacterMediator teamMate)
     {
         this.teamMate = teamMate;
-        owner.Died += OnOwnerDeath;
+        owner.Ascendance.SpiritLeft += OnOwnerDeath;
         owner.Respawned += OnOwnerRespawn;
     }
 

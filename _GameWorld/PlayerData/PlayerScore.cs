@@ -1,12 +1,12 @@
 public class PlayerScore : IResettable
 {
-    public int Kills { get; set; } = 0;
-    public int Deaths { get; set; } = 0;
-
+    public ObservableValue<int> Kills { get; set; } = new(0);
+    public ObservableValue<int> Deaths { get; set; } = new(0);
+    
     public void Reset()
     {
-        Kills = 0;
-        Deaths = 0;
+        Kills.Set(0);
+        Deaths.Set(0);
     }
     //public int Assists { get; private set; }
 }

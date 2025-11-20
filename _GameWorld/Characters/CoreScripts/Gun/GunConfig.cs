@@ -20,6 +20,7 @@ public class GunConfig : ScriptableObject
     [Range(0f, 1f)] public float baseRecoilPerShot = 0.1f;
     [Range(0f, 1f)] public float recoilPerShotMultiplier = 0.2f;
     public float recoilRecoveryPerSecond = 1f;
+    public float cursorRecoilRecoveryMultiplier = 1.5f;
     [Range(0f, 1f)] public float movementInaccuracyFactor = 0.5f;
     [Range(0f, 1f)] public float headshotAccuracyRequirement = 0.2f;
 

@@ -21,10 +21,9 @@ public class GunTipVisuals : MonoBehaviour
 
     public void ShowHit(Vector2 position)
     {
-        Quaternion randomZ = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
         var hit = Instantiate(
             muzzleFlashes[Random.Range(0, muzzleFlashes.Length)],
-            position, randomZ
+            position, QuaternionUtilities.Random()
         );
         hit.transform.localScale *= 2f;
     }

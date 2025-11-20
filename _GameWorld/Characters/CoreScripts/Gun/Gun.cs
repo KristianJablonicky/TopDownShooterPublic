@@ -26,14 +26,15 @@ public class Gun : MonoBehaviour, IResettable
     private static readonly RaycastHit2D[] _raycastHits = new RaycastHit2D[15];
 
     public ShootManager ShootManager { get; private set; }
-    public ChannelingManager ChannelingManager { get; private set; } = new();
+    public ChannelingManager ChannelingManager { get; private set; }
     private RecoilManager recoilManager;
     private IUpdatable[] managers;
     private void Awake()
     {
         GunConfig = abilityManager.Toolkit.GunConfig;
-        ShootManager = new ShootManager(GunConfig, ChannelingManager);
-        recoilManager = new RecoilManager(GunConfig, characterMovementController);
+        ChannelingManager = new (mediator.AnimationController);
+        ShootManager = new (GunConfig, ChannelingManager);
+        recoilManager = new (GunConfig, characterMovementController);
         managers = new IUpdatable[]
         {
             recoilManager,
@@ -51,6 +52,8 @@ public class Gun : MonoBehaviour, IResettable
             manager.IUpdate(Time.deltaTime);
         }
     }
+
+    public bool CanReload() => ShootManager.CanReload();
     public void Reload() => ShootManager.Reload();
     public float GetAngle() => recoilManager.GetRecoilAngle();
     public float GetRecoil() => recoilManager.CurrentRecoil;
@@ -66,7 +69,8 @@ public class Gun : MonoBehaviour, IResettable
         return true;
     }
 
-    private void DealDamage(int damage, HealthComponent targetHealthComponent) => mediator.NetworkInput.DealDamage(damage, targetHealthComponent.mediator);
+    private void DealDamage(int damage, DamageTag tag, HealthComponent targetHealthComponent)
+        => mediator.NetworkInput.DealDamage(damage, tag, targetHealthComponent.Mediator);
 
     // ran locally
     public bool CanHeadShot(bool pressedDown, AimDirection direction)
@@ -111,7 +115,7 @@ public class Gun : MonoBehaviour, IResettable
 
             if (collider.TryGetComponent<HealthComponent>(out var health))
             {
-                DealDamage((int)damage, health);
+                DealDamage((int)damage, DamageTag.Shot, health);
                 returnValue = hit.point;
                 break;
             }
@@ -206,7 +210,7 @@ public class Gun : MonoBehaviour, IResettable
                 return null;
             }
 
-            DealDamage(GunConfig.headshotDamage, health);
+            DealDamage(GunConfig.headshotDamage, DamageTag.HeadShot, health);
         }
 
         return returnValue;

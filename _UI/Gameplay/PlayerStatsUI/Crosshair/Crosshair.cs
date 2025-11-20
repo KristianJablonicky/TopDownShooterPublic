@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +14,9 @@ public class Crosshair : MonoBehaviour
     [SerializeField] private CanvasGroup[] crosshairCanvasGroups;
     [SerializeField] private float crosshairAlphaWhileChanneling = 0.25f;
 
+    [Header("Settings")]
+    [SerializeField] private float maxLineOffsetWhenRelative = 10f;
+
     [Header("References")]
     [SerializeField] private RectTransform cursorRoot;
     [SerializeField] private Image aimDirectionArrow;
@@ -21,19 +25,23 @@ public class Crosshair : MonoBehaviour
     [SerializeField] private GameObject ActiveGO, ChannelingGO;
     [SerializeField] private float minLineOffset = 3f;
 
+    private Func<float> getLineOffset;
 
     private Gun playerGun;
     private CharacterMediator mediator;
     private void Awake()
     {
         Cursor.visible = false;
-        PlayerNetworkInput.OwnerSpawned += OnOwnerSpawn;
+        PlayerNetworkInput.PlayerSpawned += OnOwnerSpawn;
         enabled = false;
     }
 
     private void Start()
     {
         EscapeMenuManager.Instance.Toggled += OnEscapeMenuToggled;
+
+        var relative = DataStorage.Instance.GetInt(DataKeyInt.SettingsRelativeCrosshair) == 1;
+        getLineOffset = relative ? GetLineOffsetRelative : GetLineOffsetWorld;
     }
 
     private void OnDestroy()
@@ -96,13 +104,28 @@ public class Crosshair : MonoBehaviour
             SetActiveCrosshairAlpha(1f);
         }
 
+        SetLineOffsets(getLineOffset());
+
+
+        var headShotValue = playerGun.CanHeadShot();
+        headshotDot.alpha = headShotValue > 0f ? Mathf.Max(playerGun.CanHeadShot(), 0.5f) : 0f;
+    }
+
+    private float GetLineOffsetRelative() => playerGun.GetRecoil() * maxLineOffsetWhenRelative;
+
+    private float GetLineOffsetWorld()
+    {
         var worldCenter = playerCamera.ScreenToWorldPoint(
             new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10f)
         );
 
         var angleRad = playerGun.GetAngle() * Mathf.Deg2Rad;
 
-
+        if (mediator.MovementController == null)
+        {
+            enabled = false;
+            return 0f;
+        }
         var distance = Vector2.Distance(mediator.GetPosition(), mediator.InputHandler.CursorPosition);
 
         var spreadRadius = Mathf.Tan(angleRad / 2f) * distance;
@@ -122,17 +145,17 @@ public class Crosshair : MonoBehaviour
             out Vector2 uiOffset
         );
 
-        var offset = (uiOffset - uiCenter).magnitude;
+        return (uiOffset - uiCenter).magnitude;
+    }
+
+    private void SetLineOffsets(float offset)
+    {
         offset = Mathf.Max(minLineOffset, offset);
 
-        topLine.anchoredPosition = new(0, offset);
-        bottomLine.anchoredPosition = new(0, -offset);
-        leftLine.anchoredPosition = new(-offset, 0);
-        rightLine.anchoredPosition = new(offset, 0);
-
-
-        var headShotValue = playerGun.CanHeadShot();
-        headshotDot.alpha = headShotValue > 0f ? Mathf.Max(playerGun.CanHeadShot(), 0.5f) : 0f;
+        topLine.anchoredPosition = Vector2.up * offset;
+        bottomLine.anchoredPosition = Vector2.down * offset;
+        leftLine.anchoredPosition = Vector2.left * offset;
+        rightLine.anchoredPosition = Vector2.right * offset;
     }
 
     private void SetActiveCrosshairAlpha(float targetAlpha)

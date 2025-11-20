@@ -32,6 +32,34 @@ public class Curse : UtilityAbility
         });
     }
 
+    public class CurseModifier : IModifierStrategy
+    {
+        private float nearSightedMultiplier;
+        public CurseModifier(float nearSightedMultiplier)
+        {
+            this.nearSightedMultiplier = nearSightedMultiplier;
+        }
+        public void Apply(CharacterMediator owner, Modifier modifier)
+        {
+            owner.AbilityManager.DisableAbilities(modifier.Duration);
+            owner.PlayerVision.SetVisionRangeProportional(nearSightedMultiplier);
+        }
+
+        public void Expire(CharacterMediator owner)
+        {
+            if (owner.IsAlive)
+            {
+                owner.PlayerVision.Reset();
+            }
+        }
+
+        public bool ExpireOnRoundEnd() => true;
+
+        public string GetDescription() => "Nearsighted and silenced!";
+
+        public bool RealTimeDuration() => true;
+    }
+
     protected override string _GetAbilitySpecificStats()
     {
         return $"Duration: {Duration}\nRange: {Range}\nNearsighted vision: {Mathf.RoundToInt(100f * NearSightedMultiplier)}%\nCast delay: {castAnimationTime}";

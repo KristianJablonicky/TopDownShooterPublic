@@ -7,6 +7,8 @@ public class Bomb : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Rigidbody2D rb;
+    [SerializeField] private SoundPlayer soundPlayer;
+    [SerializeField] private AudioClip[] explosionSounds;
     [field: SerializeField] public GameObject Explosion { get; private set; }
 
     [Header("Bomb physics")]
@@ -50,6 +52,7 @@ public class Bomb : MonoBehaviour
 
     private void Explode()
     {
+        soundPlayer.RequestPlaySound(transform, explosionSounds, false);
         // locally rendered bomb, explosion will be handled by its owner
         if (mediator == null)
         {
@@ -69,7 +72,7 @@ public class Bomb : MonoBehaviour
             {
                 var damage = Mathf.Lerp(maxDamage, minDamage, distance / ExplosionRadius);
 
-                mediator.NetworkInput.DealDamage((int)damage, player);
+                mediator.NetworkInput.DealDamage((int)damage, DamageTag.Ability, player);
                 hitCharacters.Add(player);
             }
         }

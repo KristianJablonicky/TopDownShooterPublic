@@ -17,6 +17,7 @@ public class Hex : PassiveAbility
 
     private void OnDamageTaken(int damage, CharacterMediator attacker)
     {
+        if (attacker == owner) return;
         TryInvokeRPC<BabaYagaRPCs>(rpcs => rpcs.RequestHexRPC(attacker.PlayerId));
     }
     protected override string _GetAbilitySpecificStats()
