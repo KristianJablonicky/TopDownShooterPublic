@@ -1,21 +1,28 @@
+using System;
 using UnityEngine;
 
 public abstract class ActiveAbility : Ability, IUpdatable
 {
     protected ChannelingManager channelingManager;
     [field: SerializeField] public float CoolDown { get; set; }
+    [field: SerializeField] public bool availableBeforeRoundStart { get; set; } = true;
 
 
     private GameObject rangeIndicator;
     public ObservableValue<float> CurrentCoolDown { get; private set; }
-
+    
+    public event Action AbilityBecameReady,
+        AbilityCast;
     public abstract AbilityHotKeys KeyCode { get; protected set; }
     
     public virtual void IUpdate(float dt)
     {
-        if (CurrentCoolDown != 0f)
+        if (CurrentCoolDown == 0f) return;
+        
+        CurrentCoolDown.Adjust(-dt, floor: 0f);
+        if (CurrentCoolDown == 0f)
         {
-            CurrentCoolDown.Adjust(-dt, floor: 0f);
+            AbilityBecameReady?.Invoke();
         }
     }
 
@@ -45,7 +52,11 @@ public abstract class ActiveAbility : Ability, IUpdatable
     public void SetCoolDown(float newCoolDown) => CurrentCoolDown.Set(newCoolDown);
 
     // Do not forget to invoke OnCast when the actual ability is used.
-    protected void OnCast() => CurrentCoolDown.Set(CoolDown);
+    protected void OnCast()
+    {
+        CurrentCoolDown.Set(CoolDown);
+        AbilityCast?.Invoke();
+    }
 
     public bool ReadyToCast() => CurrentCoolDown == 0f;
 
@@ -70,7 +81,7 @@ public abstract class ActiveAbility : Ability, IUpdatable
         rangeIndicator.transform.localScale = Vector2.one * range;
     }
     protected void HideRangeIndicator() => rangeIndicator.SetActive(false);
-    protected Vector2 GetDestination(Vector2 mousePosition, float range, bool worksAcrossFloors,
+    protected Vector2? GetDestination(Vector2 mousePosition, float range, bool worksAcrossFloors,
         CharacterMediator positionRelativeTo = null)
     {
         if (positionRelativeTo == null)
@@ -87,14 +98,23 @@ public abstract class ActiveAbility : Ability, IUpdatable
             mousePosition = characterPosition + ((mousePosition - characterPosition).normalized * range);
         }
 
+        Vector2 finalPosition;
         if (worksAcrossFloors && yOffset.HasValue)
         {
-            return new(mousePosition.x, mousePosition.y + yOffset.Value);
+            finalPosition = new(mousePosition.x, mousePosition.y + yOffset.Value);
         }
         else
         {
-            return mousePosition;
+            finalPosition = mousePosition;
         }
+
+        if ((FloorUtilities.GetCurrentFloor(finalPosition) == Floor.Outside)
+        || BoundsCheck.Instance.IsPositionInsideBasement(finalPosition))
+        {
+            return finalPosition;
+        }
+
+        return null;
     }
 
     /*

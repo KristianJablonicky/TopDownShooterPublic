@@ -3,7 +3,6 @@ using UnityEngine;
 public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IResettable
 {
     [Header("Objective Settings")]
-    [SerializeField] private float sacrificeRange = 2f;
     [SerializeField] private float channelDuration = 2f;
     [SerializeField] private float speedSlowWhileChanneling = 0.5f;
     [field: SerializeField] public int SacrificeCost { get; private set; } = 50;
@@ -14,25 +13,23 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
     
     [Header("References")]
     [SerializeField] private SoundPlayer soundPlayer;
-    [SerializeField] private ObjectiveArea objectiveArea;
-    [SerializeField] private GameObject visionArea;
+    [SerializeField] private Collider2D sacrificeStartArea;
+    [SerializeField] private ChaliceManager chaliceManager;
+    [SerializeField] private GameObject particleSpawner;
 
     public ObservableValue<int> SacrificesRemaining { get; private set; }
 
     private GameStateManager stateManager;
 
+    protected override void OverriddenAwake()
+    {
+        base.OverriddenAwake();
+        SacrificesRemaining = new(SacrificesRequired);
+    }
+
     private void Start()
     {
-        if (DataStorage.IsSinglePlayer)
-        {
-            CleanUp();
-            return;
-        }
-
         stateManager = GameStateManager.Instance;
-
-        SacrificesRemaining = new(SacrificesRequired);
-
         stateManager.NewRoundStarted += Reset;
 
         //manager.NewRoundStarted += GetActivated;
@@ -40,13 +37,12 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
     }
 
 
-
     public bool CanSacrifice(CharacterMediator mediator)
         => stateManager != null
         && stateManager.GameInProgress
         && !stateManager.RoundDecided
-        && mediator.InRange(transform.position, sacrificeRange, false);
-
+        && sacrificeStartArea.OverlapPoint(mediator.GetPosition());
+    //&& mediator.InRange(transform.position, sacrificeRange, false);
     public void StartSacrifice(CharacterMediator sacrificedMediator)
     {
         var channeling = sacrificedMediator.Gun.ChannelingManager;
@@ -61,11 +57,8 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
             speedSlowWhileChanneling,
             false
         );
-        /*
-        if (sacrificedMediator.IsLocalPlayer)
-        {
-        }
-        */
+
+        chaliceManager.StartChannelingAnimation(sacrificedMediator, channelDuration);
     }
 
     private void CompleteSacrifice(CharacterMediator sacrificedMediator)
@@ -79,6 +72,7 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
         if (SacrificesRemaining == 0)
         {
             stateManager.ObjectiveCaptured(sacrificedMediator.playerData.Team);
+            particleSpawner.SetActive(true);
         }
     }
 
@@ -180,15 +174,9 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
             && mediator.InRange(transform.position, objectiveArea.transform.localScale.x);
     }
     */
-
-
-    private void CleanUp()
-    {
-        visionArea.SetActive(false);
-    }
-
     public void Reset()
     {
         SacrificesRemaining.Set(SacrificesRequired);
+        particleSpawner.SetActive(false);
     }
 }

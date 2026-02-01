@@ -1,13 +1,14 @@
 using System.Collections;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 public class DjinnSummoned : NetworkBehaviour
 {
     [SerializeField] private DjinnVision[] visions;
     [SerializeField] private DjinnConfig config;
     [SerializeField] private ReleaseDjinn ability;
+    [SerializeField] private NetworkTransform networkTransform;
 
     [field: SerializeField] public NetworkObject NetworkObjectReference { get; private set; }
 
@@ -74,15 +75,34 @@ public class DjinnSummoned : NetworkBehaviour
         );
         if (postMortem)
         {
-            var delta = (Vector2)transform.position - ally.GetPosition();
+            var delta = GetDelta();
             var distance = delta.magnitude;
 
+            if (distance > 2f * config.MaxDistancePostMortem) // most likely switched a floor
+            {
+                SwitchFloor();
+                // update delta and distance after switching floor
+                delta = GetDelta();
+                distance = delta.magnitude;
+            }
             if (distance > config.MaxDistancePostMortem)
             {
                 var direction = delta.normalized;
                 transform.position = ally.GetPosition() + direction * config.MaxDistancePostMortem;
             }
         }
+    }
+
+    private Vector2 GetDelta() => (Vector2)transform.position - ally.GetPosition();
+
+    private void SwitchFloor()
+    {
+        var diff = ally.GetPosition().y - transform.position.y;
+        var targetTransform = transform.position +
+            (Vector3.up *
+            (Mathf.Sign(diff) * Constants.floorYOffset));
+        transform.position = targetTransform;
+        networkTransform.Teleport(targetTransform, transform.rotation, transform.localScale);
     }
 
     private IEnumerator FlyBack()

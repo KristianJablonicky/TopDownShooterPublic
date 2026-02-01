@@ -9,6 +9,7 @@ public class ShootManager : IUpdatable, IResettable
 
     private readonly float coolDown;
     private readonly ChannelingManager channel;
+    private readonly PlayerNetworkInput networkInput;
 
     public enum ShootResult
     {
@@ -16,8 +17,9 @@ public class ShootManager : IUpdatable, IResettable
         DidNotShoot,
         Reload
     }
-    public ShootManager(GunConfig config, ChannelingManager channelingManager)
+    public ShootManager(PlayerNetworkInput networkInput, GunConfig config, ChannelingManager channelingManager)
     {
+        this.networkInput = networkInput;
         CurrentAmmo = new(config.capacity);
         this.config = config;
         coolDown = 1f / config.RPM * 60f;
@@ -47,7 +49,7 @@ public class ShootManager : IUpdatable, IResettable
     }
 
     public bool CanReload() => CurrentAmmo != config.capacity && !channel.Channeling;
-    public void Reload()
+    public void InvokedReload()
     {
         channel.StartChanneling(
             config.reloadDuration * reloadSpeedMultiplier,
@@ -55,6 +57,11 @@ public class ShootManager : IUpdatable, IResettable
             true
         );
         channel.AlsoPlayAnAnimation(Animations.Reload);
+    }
+
+    private void Reload()
+    {
+        networkInput.RequestReloadRpc();
     }
 
     public void IUpdate(float dt)

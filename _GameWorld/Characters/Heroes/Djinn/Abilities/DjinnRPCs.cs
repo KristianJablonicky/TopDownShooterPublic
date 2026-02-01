@@ -43,7 +43,7 @@ public class DjinnRPCs : AbilityRPCs
         Wish(CharacterManager.Instance.LocalPlayerMediator);
     }
 
-    private async void Wish(CharacterMediator mediator)
+    private void Wish(CharacterMediator mediator)
     {
         mediator.NetworkInput.RequestHealRpc(wish.HealAmount, false);
 

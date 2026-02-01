@@ -31,7 +31,7 @@ public class ModifierUpdater : MonoBehaviour
 
     private void OnStacksChanged(int newStacks)
     {
-        if (newStacks == 0) stacks.text = string.Empty;
+        if (newStacks < 2) stacks.text = string.Empty;
         else stacks.text = newStacks.ToString();
     }
 }

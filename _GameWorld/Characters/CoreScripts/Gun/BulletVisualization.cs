@@ -3,13 +3,17 @@ using UnityEngine;
 public class BulletVisualization : MonoBehaviour
 {
     [SerializeField] private LineRenderer lineRenderer;
-    [SerializeField] private float fadeIn = 0.05f, duration = 0.1f, fadeOut = 0.1f, maxAlpha = 0.5f;
+    [SerializeField] private float fadeIn = 0.05f,
+        duration = 0.1f,
+        fadeOut = 0.1f,
+        maxAlpha = 0.5f;
+    [SerializeField, Range(0f, 1f)] private float fullAlphaPercent = 0.25f;
     private Gradient defaultGradient;
     private Vector3 bulletStart, bulletEnd;
 
     private Gradient gradient;
     private GradientAlphaKey[] alphaKeysDefault;
-
+    private Vector2 minDist;
     private void Awake()
     {
         defaultGradient = lineRenderer.colorGradient;
@@ -19,9 +23,16 @@ public class BulletVisualization : MonoBehaviour
     public void Shoot(Vector2 startPosition, Vector2 targetPosition)
     {
         bulletStart = startPosition;
-        lineRenderer.SetPosition(0, bulletStart);
+        
         bulletEnd = targetPosition;
-
+        var direction = bulletEnd - bulletStart;
+        
+        minDist = bulletStart + direction * fullAlphaPercent;
+        lineRenderer.SetPosition(0, minDist);
+        
+        minDist = bulletStart + direction * (fullAlphaPercent * 2f);
+        lineRenderer.SetPosition(1, minDist);
+        
         FadeIn();
     }
 
@@ -55,6 +66,6 @@ public class BulletVisualization : MonoBehaviour
     {
         var direction = bulletEnd - bulletStart;
         var currentBulletEnd = bulletStart + direction * Mathf.Clamp01(newLength);
-        lineRenderer.SetPosition(1, currentBulletEnd);
+        lineRenderer.SetPosition(2, currentBulletEnd);
     }
 }

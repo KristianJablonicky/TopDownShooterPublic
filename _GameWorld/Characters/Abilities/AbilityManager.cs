@@ -65,12 +65,27 @@ public class AbilityManager : MonoBehaviour, IResettable
             abilities[i].Reset();
         }
     }
-
     public void DisableAbilities(float abilityDisableTime)
     {
         for (int i = 0; i < activeAbilityCount; i++)
         {
             activeAbilities[i].SetCoolDown(abilityDisableTime);
+        }
+    }
+    public void DisableAbilities(float abilityDisableTime, float longerDisableTime)
+    {
+        float disableTime;
+        for (int i = 0; i < activeAbilityCount; i++)
+        {
+            if (activeAbilities[i].availableBeforeRoundStart)
+            {
+                disableTime = abilityDisableTime;
+            }
+            else
+            {
+                disableTime = longerDisableTime;
+            }
+            activeAbilities[i].SetCoolDown(disableTime);
         }
     }
 

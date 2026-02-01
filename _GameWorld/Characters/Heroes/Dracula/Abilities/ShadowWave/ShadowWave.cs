@@ -3,7 +3,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ShadowWave", menuName = "Abilities/Utility/ShadowWave")]
 public class ShadowWave : UtilityAbility
 {
-    [SerializeField] private float castTime = 0.5f;
+    [SerializeField] private float castTime = 0.5f, animationDurationMultiplier = 1.5f;
     [SerializeField] private ShadowWaveEffect shadowWave;
     protected override void OnKeyDown(Vector2 position)
     {
@@ -12,7 +12,9 @@ public class ShadowWave : UtilityAbility
 
     protected override void OnKeyUp(Vector2 position)
     {
-        if (channelingManager.Channeling && !channelingManager.Interruptible)
+        var destination = GetDestination(position, shadowWave.Range, true);
+        if ((channelingManager.Channeling && !channelingManager.Interruptible)
+        ||   !destination.HasValue)
         { 
             HideRangeIndicator();
             return;
@@ -23,11 +25,12 @@ public class ShadowWave : UtilityAbility
         channelingManager.RequestInterrupt();
         
 
-        var destination = GetDestination(position, shadowWave.Range, true);
         channelingManager.StartChanneling(castTime,
-            () => shadowWave.Cast(destination, (DraculaRPCs)characterRPCs)
+            () => shadowWave.Cast(destination.Value, (DraculaRPCs)characterRPCs)
         );
-        FadeOutThenGetDestroyed preWaveGO = Instantiate(shadowWave.PreWaveIndicator, destination, Quaternion.identity);
+        channelingManager.AlsoPlayAnAnimation(Animations.AbilityUtility, animationDurationMultiplier);
+
+        FadeOutThenGetDestroyed preWaveGO = Instantiate(shadowWave.PreWaveIndicator, destination.Value, Quaternion.identity);
         preWaveGO.duration = 0f;
         preWaveGO.fadeOutTime = castTime;
     }

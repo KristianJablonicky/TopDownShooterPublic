@@ -2,30 +2,34 @@ using UnityEngine;
 
 public class Stairs : MonoBehaviour
 {
-    [SerializeField] private Floor stairsLeadToFloor;
+    private Floor stairsLeadToFloor;
 
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Sprite[] stairSprites;
     [SerializeField] private BoxCollider2D boxCollider;
     [SerializeField] private GameObject walkingRestrictions;
     [SerializeField] private Obstacle obstacleComponent;
+    [SerializeField] private GameObject lightSource, particleSpawner;
 
     private Vector2 yOffset;
     private void Awake()
     {
+        stairsLeadToFloor = FloorUtilities.GetDifferentFloor(FloorUtilities.GetCurrentFloor(transform.position));
         spriteRenderer.sprite = stairSprites[(int)stairsLeadToFloor];
-        if (stairsLeadToFloor == Floor.First)
+        if (stairsLeadToFloor == Floor.Basement)
         {
             boxCollider.offset = new Vector2(0f, -0.7f);
             boxCollider.size = new Vector2(0.9f, 0.5f);
+            particleSpawner.SetActive(true);
         }
         else
         {
             boxCollider.offset = new Vector2(0f, 0.7f);
             boxCollider.size = new Vector2(0.9f, 0.5f);
+            lightSource.SetActive(true);
         }
 
-        if (stairsLeadToFloor != Floor.Second)
+        if (stairsLeadToFloor == Floor.Basement)
         {
             walkingRestrictions.transform.Rotate(0f, 0f, 180f);
             obstacleComponent.gameObject.layer = 0;
@@ -53,6 +57,6 @@ public class Stairs : MonoBehaviour
 
 public enum Floor
 {
-    First,
-    Second
+    Basement,
+    Outside
 }

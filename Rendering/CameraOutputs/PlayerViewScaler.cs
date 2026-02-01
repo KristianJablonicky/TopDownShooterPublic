@@ -6,10 +6,10 @@ public class PlayerViewScaler : MonoBehaviour
     [SerializeField] private RectTransform rt;
     [SerializeField] private float width = 16f, height = 9f;
 
-    private float desiredAspect;
+    private float targetAspect;
     private void Awake()
     {
-        desiredAspect = width / height;
+        targetAspect = width / height;
         Resize();
     }
 
@@ -20,23 +20,23 @@ public class PlayerViewScaler : MonoBehaviour
 
     private void Resize()
     {
-        float parentWidth = ((RectTransform)rt.parent).rect.width;
-        float parentHeight = ((RectTransform)rt.parent).rect.height;
-        float parentAspect = parentWidth / parentHeight;
+        var parentWidth = ((RectTransform)rt.parent).rect.width;
+        var parentHeight = ((RectTransform)rt.parent).rect.height;
+        var parentAspect = parentWidth / parentHeight;
 
-        if (parentAspect > desiredAspect)
+        if (parentAspect > targetAspect)
         {
             // Parent is wider than desired, height fills parent, width adjusts
-            float newHeight = parentHeight;
-            float newWidth = newHeight * desiredAspect;
+            var newHeight = parentHeight;
+            var newWidth = newHeight * targetAspect;
             rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, newWidth);
             rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, newHeight);
         }
         else
         {
             // Parent is taller than desired, width fills parent, height adjusts
-            float newWidth = parentWidth;
-            float newHeight = newWidth / desiredAspect;
+            var newWidth = parentWidth;
+            var newHeight = newWidth / targetAspect;
             rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, newWidth);
             rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, newHeight);
         }

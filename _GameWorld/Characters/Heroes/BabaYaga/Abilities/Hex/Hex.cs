@@ -11,7 +11,13 @@ public class Hex : PassiveAbility
 
     protected override void SetUp()
     {
-        owner.HealthComponent.DamageTaken += OnDamageTaken;
+        PlayerNetworkInput.PlayerSpawned += OnLocalPlayerSpawn;
+    }
+
+    private void OnLocalPlayerSpawn(CharacterMediator mediator)
+    {
+        if (mediator != owner) return;
+        owner.HealthComponent.DamageTakenFromMediator += OnDamageTaken;
     }
 
 

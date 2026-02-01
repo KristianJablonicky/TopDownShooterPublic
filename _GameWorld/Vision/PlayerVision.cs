@@ -48,7 +48,7 @@ public class PlayerVision : VisionMesh, IResettable
         }
         else
         {
-            SetVisionRange(0f, Ascendance.timeToAscend);
+            SetVisionRange(0f, mediator.Ascendance.TimeToAscend);
         }
     }
 
@@ -91,21 +91,32 @@ public class PlayerVision : VisionMesh, IResettable
     {
         SetVisionRange(baseVisionRange * newVisionPercentage);
     }
+
+    private Coroutine visionChangeAnimationCoroutine;
+
     public void SetVisionRange(float newVisionRange, float duration = 0.25f)
     {
         if (newVisionRange == visionRange) return;
-        Tweener.Tween(this, visionRange, newVisionRange, duration, TweenStyle.quadratic,
-            value => {
-                visionRange = value;
-                visionLight.UpdateVision(value, guaranteedVisionRangeMultiplier * value);
-            },
-            onExit: () =>
-            {
-                if (newVisionRange <= 0f)
+
+        if (visionChangeAnimationCoroutine != null)
+        {
+            mediator.StopCoroutine(visionChangeAnimationCoroutine);
+        }
+        visionChangeAnimationCoroutine = mediator.StartCoroutine
+        (
+            Tweener.TweenCoroutine(this, visionRange, newVisionRange, duration, TweenStyle.quadratic,
+                value => {
+                    visionRange = value;
+                    visionLight.UpdateVision(value, guaranteedVisionRangeMultiplier * value);
+                },
+                onExit: () =>
                 {
-                    gameObject.SetActive(false);
+                    if (newVisionRange <= 0f)
+                    {
+                        gameObject.SetActive(false);
+                    }
                 }
-            }
+            )
         );
     }
 

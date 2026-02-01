@@ -33,7 +33,7 @@ public class Gun : MonoBehaviour, IResettable
     {
         GunConfig = abilityManager.Toolkit.GunConfig;
         ChannelingManager = new (mediator.AnimationController);
-        ShootManager = new (GunConfig, ChannelingManager);
+        ShootManager = new (mediator.NetworkInput, GunConfig, ChannelingManager);
         recoilManager = new (GunConfig, characterMovementController);
         managers = new IUpdatable[]
         {
@@ -54,7 +54,7 @@ public class Gun : MonoBehaviour, IResettable
     }
 
     public bool CanReload() => ShootManager.CanReload();
-    public void Reload() => ShootManager.Reload();
+    public void Reload() => ShootManager.InvokedReload();
     public float GetAngle() => recoilManager.GetRecoilAngle();
     public float GetRecoil() => recoilManager.CurrentRecoil;
 
@@ -70,7 +70,7 @@ public class Gun : MonoBehaviour, IResettable
     }
 
     private void DealDamage(int damage, DamageTag tag, HealthComponent targetHealthComponent)
-        => mediator.NetworkInput.DealDamage(damage, tag, targetHealthComponent.Mediator);
+        => mediator.NetworkInput.DealDamage(damage, tag, targetHealthComponent.Mediator, mediator);
 
     // ran locally
     public bool CanHeadShot(bool pressedDown, AimDirection direction)
@@ -96,6 +96,7 @@ public class Gun : MonoBehaviour, IResettable
     public void ShowShotVisuals()
     {
         gunTipVisuals.Shoot();
+        mediator.AnimationController.PlayAnimation(Animations.Shoot);
     }
 
     public Vector2? RaycastForDamage(Vector2 source, Vector2 direction, Vector2? destination, float damageMultiplier = 1f)

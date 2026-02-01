@@ -5,7 +5,6 @@ public class ObjectiveTextUpdater : MonoBehaviour
 {
     [SerializeField] private DefenderObjective objective;
     [SerializeField] private TMP_Text costTMP;
-    [SerializeField] private ObservableVariableBinder progressBinder;
 
     private void Start()
     {
@@ -20,14 +19,20 @@ public class ObjectiveTextUpdater : MonoBehaviour
     private void OnLocalPlayerSpawned(CharacterMediator localPlayer)
     {
         localPlayer.BloodManager.OnBloodPickedUp += () => UpdateCostText(localPlayer);
-        localPlayer.HealthComponent.DamageTaken += (_, p) => UpdateCostText(p);
+        localPlayer.HealthComponent.DamageTaken += () => UpdateCostText(localPlayer);
         localPlayer.NewRoleAssigned += (_) => UpdateCostText(localPlayer);
-
-        progressBinder.Bind(objective.SacrificesRemaining, true);
     }
 
     private void UpdateCostText(CharacterMediator mediator)
     {
-        costTMP.text = $"{objective.GetCurrentCost(mediator)} health cost";
+        var cost = objective.GetCurrentCost(mediator);
+        if (cost > 0)
+        {
+            costTMP.text = objective.GetCurrentCost(mediator).ToString();
+        }
+        else
+        {
+            costTMP.text = string.Empty;
+        }
     }
 }

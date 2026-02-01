@@ -8,8 +8,9 @@ public class HealthComponent : MonoBehaviour, IResettable
     [field: SerializeField] public bool NPC { get; private set; } = false;
     public ObservableValue<int> CurrentHealth { get; private set; }
 
+    public event Action DamageTaken;
     public event Action<DamageTag> DamageTakenWithTags;
-    public event Action<int, CharacterMediator> DamageTaken;
+    public event Action<int, CharacterMediator> DamageTakenFromMediator;
     public event Action<int, CharacterMediator, CharacterMediator> M1TookDamageFromM2;
 
     private int baseMaxHealth;
@@ -23,6 +24,10 @@ public class HealthComponent : MonoBehaviour, IResettable
     {
         Mediator.NetworkInput.TakeLethalDamage();
     }
+    public void TakeLethalDamage(CharacterMediator damager, DamageTag tag)
+    {
+        Mediator.NetworkInput.TakeLethalDamage(damager, tag);
+    }
 
     public void TakeDamage(int damage, DamageTag tag, CharacterMediator killer)
     {
@@ -31,23 +36,17 @@ public class HealthComponent : MonoBehaviour, IResettable
         damage = Mathf.Min(damage, CurrentHealth);
         CurrentHealth.Adjust(-damage, 0);
 
-        if (Mediator.IsLocalPlayer)
-        {
-            DamageTaken?.Invoke(damage, killer);
-        }
-        else
-        {
-            M1TookDamageFromM2?.Invoke(damage, Mediator, killer);
-        }
+        DamageTaken?.Invoke();
+
+        DamageTakenFromMediator?.Invoke(damage, killer);
+
+        M1TookDamageFromM2?.Invoke(damage, Mediator, killer);
 
         DamageTakenWithTags?.Invoke(tag);
 
+
         if (CurrentHealth <= 0)
         {
-            var gameStateManager = GameStateManager.Instance;
-            if (gameStateManager.GameInProgress
-                && gameStateManager.RoundDecided) return;
-
             Mediator.Die(killer);
         }
     }

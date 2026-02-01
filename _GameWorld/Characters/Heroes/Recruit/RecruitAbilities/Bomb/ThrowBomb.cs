@@ -11,7 +11,7 @@ public class ThrowBomb : UtilityAbility
     protected override void OnKeyUp(Vector2 position)
     {
         var throwVelocity2D = (position - owner.GetPosition()).normalized * throwVelocity
-                                + owner.MovementController.GetLinearVelocity * carriedVelocityRatio;
+                                + owner.MovementController.GetLinearVelocity() * carriedVelocityRatio;
 
         TryInvokeRPC<RecruitAbilityRPCs>(rpcs =>
         {

@@ -11,6 +11,7 @@ public class VisionMesh : MonoBehaviour
     [SerializeField] protected float visionRange = 10f;
     [SerializeField] protected float guaranteedVisionRangeMultiplier = 0.75f;
     [SerializeField] protected float frontalFov = 45f;
+    [SerializeField] private bool setUpOnSpawn = false;
 
     [Header("Misc")]
     [SerializeField] private LayerMask onlyBlockingLayer;
@@ -36,6 +37,10 @@ public class VisionMesh : MonoBehaviour
 
         angleIncrease = 360f / rayCount;
         VirtualStart();
+        if (setUpOnSpawn)
+        {
+            UpdateMesh(Vector2.zero, null);
+        }
     }
 
     protected virtual void VirtualStart() { }

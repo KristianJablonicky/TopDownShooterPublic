@@ -11,7 +11,7 @@ public class PlayerNetworkInput : NetworkBehaviour
     [SerializeField] private PlayerInputHandler inputHandler;
     [SerializeField] private Gun gun;
 
-    [SerializeField] private GameObject ping;
+    [SerializeField] private Ping ping;
 
     [SerializeField] private bool NPC = false;
 
@@ -54,7 +54,10 @@ public class PlayerNetworkInput : NetworkBehaviour
 
     #region damage
 
-    public void DealDamage(int damage, DamageTag tag, CharacterMediator targetMediator)
+    public Action<int, DamageTag> OnDamageDealt;
+    public Action<int, DamageTag, CharacterMediator> OnDamageDealtToMediator;
+
+    public void DealDamage(int damage, DamageTag tag, CharacterMediator targetMediator, CharacterMediator sourceMediator)
     {
         if (!targetMediator.HealthComponent.CanTakeDamage) return;
 
@@ -64,34 +67,57 @@ public class PlayerNetworkInput : NetworkBehaviour
             return;
         }
 
-
-        if (!targetMediator.IsNPC) DealDamageRequestRpc(damage, tag, targetMediator.PlayerId);
-        else targetMediator.HealthComponent.TakeDamage(damage, tag, mediator);
+        if (!targetMediator.IsNPC) DealDamageRequestRpc(damage, tag, targetMediator.PlayerId, sourceMediator.PlayerId);
+        else
+        {
+            targetMediator.HealthComponent.TakeDamage(damage, tag, mediator);
+            NotifySubscribers(damage, tag, targetMediator);
+        }
     }
     public void TakeLethalDamage()
     {
         if (!mediator.HealthComponent.CanTakeDamage) return;
-        DealDamageRequestRpc(mediator.HealthComponent.CurrentHealth, DamageTag.Neutral, mediator.PlayerId);
+        DealDamageRequestRpc(mediator.HealthComponent.CurrentHealth, DamageTag.Neutral, mediator.PlayerId, mediator.PlayerId);
+    }
+    public void TakeLethalDamage(CharacterMediator damager, DamageTag tag)
+    {
+        if (!mediator.HealthComponent.CanTakeDamage) return;
+        damager.NetworkInput.DealDamage(mediator.HealthComponent.CurrentHealth, tag, mediator, damager);
     }
 
     public void TakeDamage(int damage, DamageTag tag)
     {
-        DealDamageRequestRpc(damage, tag, mediator.PlayerId);
+        DealDamageRequestRpc(damage, tag, mediator.PlayerId, mediator.PlayerId);
     }
 
     [Rpc(SendTo.Server)]
-    private void DealDamageRequestRpc(int damage, DamageTag tag, ulong targetID)
+    private void DealDamageRequestRpc(int damage, DamageTag tag, ulong targetID, ulong sourceID)
     {
-        NotifyDealDamageRpc(damage, tag, targetID);
+        NotifyDealDamageRpc(damage, tag, targetID, sourceID);
     }
 
     [Rpc(SendTo.Everyone)]
-    private void NotifyDealDamageRpc(int damage, DamageTag tag, ulong targetID)
+    private void NotifyDealDamageRpc(int damage, DamageTag tag, ulong targetID, ulong sourceID)
     {
-        var player = CharacterManager.Instance.Mediators[targetID];
-        //Debug.Log($"dealing {damage} damage to {targetID}");
-        player.HealthComponent.TakeDamage(damage, tag, mediator);
+        var manager = CharacterManager.Instance;
+        var hitMediator = manager.Mediators[targetID];
+
+        hitMediator.HealthComponent.TakeDamage(damage, tag, mediator);
+
+        var sourceMediator = manager.Mediators[sourceID];
+        if (sourceMediator == manager.LocalPlayerMediator
+            && sourceMediator != hitMediator)
+        {
+            NotifySubscribers(damage, tag, hitMediator);
+        }
     }
+
+    private void NotifySubscribers(int damage, DamageTag tag, CharacterMediator hitMediator)
+    {
+        OnDamageDealt?.Invoke(damage, tag);
+        OnDamageDealtToMediator?.Invoke(damage, tag, hitMediator);
+    }
+
     [Rpc(SendTo.Server)]
     public void RequestHealRpc(int healAmount, bool overHeal)
     {
@@ -273,19 +299,20 @@ public class PlayerNetworkInput : NetworkBehaviour
 
     #region misc
     [Rpc(SendTo.Server)]
-    public void RequestPingRpc(Vector2 pingPos, ulong playerId)
+    public void RequestPingRpc(Vector2 pingPos, AimDirection aimDirection, ulong playerId)
     {
         if (!GameStateManager.Instance.GameInProgress) return;
 
         var mediator = CharacterManager.Instance.Mediators[playerId];
         var teamMateIds = mediator.AbilityRPCs.GetTeamMateIds();
-        ClientPingRpc(pingPos, GetRpcParams(teamMateIds));
+        ClientPingRpc(pingPos, aimDirection, GetRpcParams(teamMateIds));
     }
 
     [Rpc(SendTo.SpecifiedInParams)]
-    private void ClientPingRpc(Vector2 pingPos, RpcParams rpcParams = default)
+    private void ClientPingRpc(Vector2 pingPos, AimDirection aimDirection, RpcParams rpcParams = default)
     {
-        Instantiate(ping, pingPos, Quaternion.identity);
+        var pingInstance = Instantiate(ping, pingPos, Quaternion.identity);
+        pingInstance.Init(aimDirection);
     }
     #endregion
 

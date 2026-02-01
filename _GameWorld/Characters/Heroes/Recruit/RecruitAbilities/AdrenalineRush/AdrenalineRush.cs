@@ -4,7 +4,6 @@ using UnityEngine;
 public class AdrenalineRush : PassiveAbility
 {
     [SerializeField][Range(0, 100)] private int maxMoveBonus = 50;
-    private float currentMovementBonus = 0;
     protected override void AbstractReset() { }
 
     protected override void SetUp()
@@ -25,10 +24,7 @@ public class AdrenalineRush : PassiveAbility
         {
             return;
         }
-        newBonus++;
-        owner.MovementController.AdjustMovementMultiplier(-currentMovementBonus);
-        owner.MovementController.AdjustMovementMultiplier(newBonus);
-        currentMovementBonus = newBonus;
+        owner.MovementController.AddOrChangeMultiplier(this, newBonus);
     }
     protected override string _GetAbilitySpecificStats()
     {

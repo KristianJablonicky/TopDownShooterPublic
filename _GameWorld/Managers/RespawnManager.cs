@@ -50,4 +50,6 @@ public class RespawnManager : SingletonMonoBehaviour<RespawnManager>
         var spawnPoints = id % 2 == 0 ? spawnPointsUpper : spawnPointsLower;
         return spawnPoints[Random.Range(0, spawnPoints.Length)].transform.position;
     }
+
+    public Vector2 GetSpawnPointTraining() => new(0f, Constants.floorYOffset);
 }

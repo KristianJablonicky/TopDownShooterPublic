@@ -22,7 +22,7 @@ public class FloorParallax : MonoBehaviour
 
     private void OnFloorChange(Floor newFloor)
     {
-        enabled = newFloor == Floor.Second;
+        enabled = newFloor == Floor.Outside;
     }
 
     private void LateUpdate()

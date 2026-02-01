@@ -57,6 +57,10 @@ public class SinglePlayerManager : SingletonMonoBehaviour<SinglePlayerManager>
         player.Gun.ChannelingManager.StartChannelingStandingStill(delayBeforeStart, null, player, false);
 
         await TaskExtensions.Delay(delayBeforeStart);
+
+        if (this == null) return;
+        if (!isActiveAndEnabled) return;
+
         GameStateManager.Instance.StartTraining(trainingDuration, this);
         practiceManager.StartTraining();
     }

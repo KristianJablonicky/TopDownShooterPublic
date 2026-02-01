@@ -4,14 +4,16 @@ using UnityEngine;
 public class BloodManager : MonoBehaviour, IResettable
 {
     [SerializeField] private BloodPuddle bloodPuddle;
+    private GameObject particleSpawner;
     private BloodPuddle bloodPuddleInstance;
     public bool BloodPickedUp { get; private set; }
     public event Action OnBloodPickedUp;
 
     private CharacterMediator owner;
-    public void Init(CharacterMediator mediator)
+    public void Init(CharacterMediator mediator, GameObject particleSpawner)
     {
         owner = mediator;
+        this.particleSpawner = particleSpawner;
         mediator.NewRoleAssigned += (newRole) => OnNewRoleAssigned(mediator, newRole);
         mediator.Died += OnDeath;
     }
@@ -45,7 +47,8 @@ public class BloodManager : MonoBehaviour, IResettable
     public void PickUpBlood()
     {
         BloodPickedUp = true;
-        owner.SpriteRenderer.MultiplyColor(1f, 0.5f, 0.5f);
+        //owner.SpriteRenderer.MultiplyColor(1f, 0.5f, 0.5f);
+        particleSpawner.SetActive(true);
         OnBloodPickedUp?.Invoke();
     }
 
@@ -63,5 +66,6 @@ public class BloodManager : MonoBehaviour, IResettable
     public void Reset()
     {
         BloodPickedUp = false;
+        particleSpawner.SetActive(false);
     }
 }

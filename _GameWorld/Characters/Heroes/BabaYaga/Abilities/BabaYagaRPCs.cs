@@ -23,7 +23,7 @@ public class BabaYagaRPCs : AbilityRPCs
             if (character == caster) continue;
 
             if (!caster.InRange(character, curse.Range, true)) continue;
-            if (!caster.LookingAt(character, curse.ArcDegrees)) continue;
+            if (!caster.LookingAt(character, curse.ArcDegrees, true)) continue;
 
             targetsHit.Add(character);
         }

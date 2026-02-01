@@ -29,7 +29,8 @@ public class ChannelingManager : IUpdatable, IResettable
         StartChannelingSlowedDown(duration, actionOnExit, mediator, 0f, interruptible);
     }
 
-    public void StartChannelingSlowedDown(float duration, Action actionOnExit, CharacterMediator mediator, float movementSpeedMultiplier, bool interruptible)
+    public void StartChannelingSlowedDown(float duration, Action actionOnExit,
+        CharacterMediator mediator, float movementSpeedMultiplier, bool interruptible)
     {
         Action enableMovement;
         if (movementSpeedMultiplier == 0f)
@@ -39,11 +40,8 @@ public class ChannelingManager : IUpdatable, IResettable
         }
         else
         {
-            // transform 0.5f to 2f, so that the movespeed is halved
-            if (movementSpeedMultiplier < 1f) movementSpeedMultiplier = 1f / movementSpeedMultiplier;
-
-            mediator.MovementController.AdjustMovementMultiplier(-movementSpeedMultiplier);
-            enableMovement = () => mediator.MovementController.AdjustMovementMultiplier(movementSpeedMultiplier); ;
+            mediator.MovementController.AddOrChangeMultiplier(this, -movementSpeedMultiplier);
+            enableMovement = () => mediator.MovementController.AddOrChangeMultiplier(this, 0f);
         }
 
 
@@ -90,10 +88,11 @@ public class ChannelingManager : IUpdatable, IResettable
         }
     }
 
-    public void AlsoPlayAnAnimation(Animations animation)
+    public void AlsoPlayAnAnimation(Animations animation, float durationMultiplier = 1f, float durationBonus = 0f)
     {
-        animationController.PlayAnimation(animation, TimeTotal);
+        animationController.PlayAnimation(animation, TimeTotal * durationMultiplier + durationBonus);
     }
+
 
     public void Reset()
     {

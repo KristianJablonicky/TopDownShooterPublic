@@ -13,8 +13,10 @@ public class HealthUI : MonoBehaviour
     private float red;
     private void Awake()
     {
-        red = healthText.color.r;
+        if (healthText != null) red = healthText.color.r;
+        
         if (teamMateHealth) return;
+
 
         PlayerNetworkInput.PlayerSpawned += Subscribe;
     }
@@ -39,10 +41,13 @@ public class HealthUI : MonoBehaviour
 
     private void UpdateHealth(int newHealth)
     {
-        healthText.text = newHealth.ToString();
         var ratio = (float)newHealth / playerHealth.MaxHealth;
         healthFill.fillAmount = ratio;
 
+        if (healthText != null)
+        {
+            healthText.text = newHealth.ToString();
+        }
         healthFill.color = new(red, ratio, ratio);
     }
 }

@@ -28,7 +28,8 @@ public class RoundStartWait : SingletonMonoBehaviour<RoundStartWait>
 
     private void DisableActions(float delay)
     {
-        localPlayer.AbilityManager.DisableAbilities(delay);
+        // To avoid lovely stuff like Dracula spawn killing
+        localPlayer.AbilityManager.DisableAbilities(delay, delayAttackers);
         localPlayer.Gun.ChannelingManager.StartChannelingStandingStill(delay, null, localPlayer, false);
     }
 }

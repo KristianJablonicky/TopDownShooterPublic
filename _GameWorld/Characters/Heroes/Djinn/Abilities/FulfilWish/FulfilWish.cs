@@ -42,22 +42,26 @@ public class FulfilWish : MovementAbility
         private readonly float movementSpeedMultiplier;
         public WishModifier(float movementSpeedMultiplier)
         {
-            this.movementSpeedMultiplier = 1f + movementSpeedMultiplier;
+            this.movementSpeedMultiplier = movementSpeedMultiplier;
         }
 
         public void Apply(CharacterMediator owner, Modifier modifier)
         {
-            owner.MovementController.AdjustMovementMultiplier(movementSpeedMultiplier);
+            owner.MovementController.AddOrChangeMultiplier(this, movementSpeedMultiplier);
+            modifier.Stacks.OnValueSet += stacks =>
+            {
+                owner.MovementController.AddOrChangeMultiplier(this, stacks * movementSpeedMultiplier);
+            };
         }
 
         public void Expire(CharacterMediator owner)
         {
-            owner.MovementController.AdjustMovementMultiplier(-movementSpeedMultiplier);
+            owner.MovementController.RemoveMultiplier(this);
         }
 
         public bool ExpireOnRoundEnd() => true;
 
-        public string GetDescription() => $"Moving {Mathf.FloorToInt(100f * (movementSpeedMultiplier - 1f))}% faster.";
+        public string GetDescription() => $"Moving {Mathf.FloorToInt(100f * movementSpeedMultiplier)}% faster.";
 
         public bool RealTimeDuration() => true;
     }

@@ -22,6 +22,6 @@ public class ThreeWishes : PassiveAbility
 
     protected override string _GetAbilitySpecificStats()
     {
-        return $"Number of wishes (yep, you guessed it): {maxWishes}";
+        return $"Number of wishes (yes, you guessed it): {maxWishes}";
     }
 }

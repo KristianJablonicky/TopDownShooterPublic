@@ -14,13 +14,19 @@ public class Shadowstep : MovementAbility
 
     protected override void OnKeyUp(Vector2 position)
     {
-        if (channelingManager.Channeling) return;
-
-        HideRangeIndicator();
-
         var destination = GetDestination(position, range, true);
+        if ((channelingManager.Channeling && !channelingManager.Interruptible)
+        ||   !destination.HasValue)
+        {
+            HideRangeIndicator();
+            return;
+        }
+        HideRangeIndicator();
+        owner.Gun.ShootManager.Reset();
+        channelingManager.RequestInterrupt();
 
-        channelingManager.StartChannelingStandingStill(channelStart, () => Teleport(destination), owner, false);
+
+        channelingManager.StartChannelingStandingStill(channelStart, () => Teleport(destination.Value), owner, false);
         PlaySound(0);
         OnCast();
     }

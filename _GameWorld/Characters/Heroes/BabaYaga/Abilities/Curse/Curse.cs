@@ -34,7 +34,7 @@ public class Curse : UtilityAbility
 
     public class CurseModifier : IModifierStrategy
     {
-        private float nearSightedMultiplier;
+        private readonly float nearSightedMultiplier;
         public CurseModifier(float nearSightedMultiplier)
         {
             this.nearSightedMultiplier = nearSightedMultiplier;

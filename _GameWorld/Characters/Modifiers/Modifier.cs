@@ -14,7 +14,7 @@ public class Modifier
 
     public Modifier(CharacterMediator owner, IModifierStrategy strategy, float duration, int stacks, Sprite icon)
     {
-        var alreadyExists = owner.Modifiers.ModifierExistsOfType(strategy.GetType(), stacks);
+        var alreadyExists = owner.Modifiers.ModifierExistsOfType(strategy.GetType(), stacks, duration);
 
         if (alreadyExists) return;
 

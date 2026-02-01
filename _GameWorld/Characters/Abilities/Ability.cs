@@ -23,7 +23,6 @@ public abstract class Ability : ScriptableObject, IResettable
         return instance;
     }
 
-
     public string GetDescription() => $"{Description}\n{_GetAbilitySuffix()}";
     public string GetLongDescription()
     {
@@ -83,12 +82,8 @@ public abstract class Ability : ScriptableObject, IResettable
 
     private AudioClip GetClip(int? clipIndex)
     {
-        if (clipIndex.HasValue)
-        {
-            return audioClips[clipIndex.Value];
-        }
-
-        return audioClips[UnityEngine.Random.Range(0, audioClips.Length)];
+        var clip = clipIndex ?? UnityEngine.Random.Range(0, audioClips.Length);
+        return audioClips[clip];
     }
 
 

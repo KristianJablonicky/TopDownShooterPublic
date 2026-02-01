@@ -3,24 +3,24 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ThrowSmoke", menuName = "Abilities/Utility/ThrowSmoke")]
 public class ThrowSmoke : UtilityAbility
 {
-    [field: SerializeField] public float Duration { get; private set; } = 5f;
-    [field: SerializeField] public float Radius { get; private set; } = 2.5f;
-    [SerializeField] private float range = 5f;
+    [SerializeField] private SmokeGameObject smokePrefab;
     protected override void OnKeyDown(Vector2 position)
     {
-        ShowRangeIndicator(range);
+        ShowRangeIndicator(smokePrefab.Range);
     }
 
     protected override void OnKeyUp(Vector2 position)
     {
+        var destination = GetDestination(position, smokePrefab.Range, true);
+        if (!destination.HasValue) return;
+        
         HideRangeIndicator();
         OnCast();
-        var destination = GetDestination(position, range, true);
-        TryInvokeRPC<RecruitAbilityRPCs>(rpcs => rpcs.RequestSmokeRPC(destination));
+        TryInvokeRPC<RecruitAbilityRPCs>(rpcs => rpcs.RequestSmokeRPC(destination.Value));
     }
 
     protected override string _GetAbilitySpecificStats()
     {
-        return $"Range: {range}\nDuration: {Duration}s";
+        return $"Range: {smokePrefab.Range}\nDuration: {smokePrefab.Duration}s";
     }
 }

@@ -87,6 +87,11 @@ public class CharacterManager : SingletonMonoBehaviour<CharacterManager>
 #endif
                 character.MovementController.SetPosition(spawnPos);
             }
+            else
+            {
+                character.MovementController.SetPosition(
+                    RespawnManager.Instance.GetSpawnPointTraining());
+            }
         }
 
         if (DataStorage.Instance.GetGameMode() == GameMode.MultiPlayer &&

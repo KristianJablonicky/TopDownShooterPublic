@@ -12,12 +12,10 @@ public class ShadowWavePostMortem : AbilityPostMortem
     protected override void OnKeyUpSecure(Vector2 position)
     {
         var destination = GetDestination(position, shadowWave.Range, true, teamMate);
-        shadowWave.Cast(destination, (DraculaRPCs)characterRPCs);
+        if (!destination.HasValue) return;
+        shadowWave.Cast(destination.Value, (DraculaRPCs)characterRPCs);
         OnCast();
     }
 
-    protected override string _GetAbilitySpecificStats()
-    {
-        return "";
-    }
+    protected override string _GetAbilitySpecificStats() => "";
 }

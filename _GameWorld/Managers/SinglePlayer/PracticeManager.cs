@@ -19,8 +19,8 @@ public class PracticeManager : MonoBehaviour
 
     public void Init(TrainingScoreManager scoreManager)
     {
-        SubscribeToCharacters(Floor.First, firstFloorDummies);
-        SubscribeToCharacters(Floor.Second, secondFloorDummies);
+        SubscribeToCharacters(Floor.Basement, firstFloorDummies);
+        SubscribeToCharacters(Floor.Outside, secondFloorDummies);
         this.scoreManager = scoreManager;
 
     }
@@ -81,7 +81,7 @@ public class PracticeManager : MonoBehaviour
         {
             floor = FloorUtilities.GetDifferentFloor(floor);
         }
-        RespawnDummy(floor == Floor.First ? firstFloorDummies : secondFloorDummies);
+        RespawnDummy(floor == Floor.Basement ? firstFloorDummies : secondFloorDummies);
     }
 
     private void RespawnDummy(CharacterMediator[] dummies)

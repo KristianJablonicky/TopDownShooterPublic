@@ -72,7 +72,7 @@ public class Bomb : MonoBehaviour
             {
                 var damage = Mathf.Lerp(maxDamage, minDamage, distance / ExplosionRadius);
 
-                mediator.NetworkInput.DealDamage((int)damage, DamageTag.Ability, player);
+                mediator.NetworkInput.DealDamage((int)damage, DamageTag.Ability, player, mediator);
                 hitCharacters.Add(player);
             }
         }

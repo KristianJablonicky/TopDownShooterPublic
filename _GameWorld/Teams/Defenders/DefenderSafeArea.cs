@@ -1,11 +1,12 @@
 using System.Collections;
 using UnityEngine;
 
-public class BoundsCheck : MonoBehaviour
+public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
 {
     [SerializeField] private BoxCollider2D[] boxColliders;
     [SerializeField] private float checkInterval = 0.2f, maxTimeOutside = 2f;
     [SerializeField] private CanvasGroup screenOverlay;
+    [SerializeField] private BoxCollider2D basementCollider;
 
     private GameStateManager gameStateManager;
 
@@ -84,6 +85,7 @@ public class BoundsCheck : MonoBehaviour
                 break;
             }
         }
-        
     }
+
+    public bool IsPositionInsideBasement(Vector2 position) => basementCollider.bounds.Contains(position);
 }

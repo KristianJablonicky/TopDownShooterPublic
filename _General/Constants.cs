@@ -15,4 +15,6 @@ public static class Constants
     public const float objectiveCaptureTime = 5f;
     public const int attackersObjectiveRewardStacks = 1;
     public const int defendersObjectiveRewardStacks = 2;
+
+    public const float CharacterMaxMovementSpeed = 3.75f;
 }

@@ -9,9 +9,16 @@ public class RoleUI : MonoBehaviour
                          defenderObjectiveText = defenderPrefix + "(Channel the objective)",
                          attackerText = attackerPrefix + "(Channel the objective)",
                          defenderText = defenderPrefix + "(Obtain blood)";
-                         
+    
+    private int kills = 0, deaths = 0;
+
     private void Start()
     {
+        if (DataStorage.IsSinglePlayer)
+        {
+            Destroy(gameObject);
+            return;
+        }
         PlayerNetworkInput.PlayerSpawned += OnPlayerSpawned;
         GameStateManager.Instance.GameStarted += OnGameStart;
     }
@@ -55,9 +62,6 @@ public class RoleUI : MonoBehaviour
             _ => throw new System.NotImplementedException()
         };
     }
-
-
-    private int kills = 0, deaths = 0;
     private void OnKill(CharacterMediator victim, CharacterMediator player)
     {
         kills++;

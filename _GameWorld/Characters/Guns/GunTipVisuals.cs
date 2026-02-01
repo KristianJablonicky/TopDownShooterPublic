@@ -21,10 +21,11 @@ public class GunTipVisuals : MonoBehaviour
 
     public void ShowHit(Vector2 position)
     {
+        var z = characterMediator.RotationController.GetRotationAngle + 90f + Random.Range(-35, 35f);
         var hit = Instantiate(
             muzzleFlashes[Random.Range(0, muzzleFlashes.Length)],
-            position, QuaternionUtilities.Random()
+            position, Quaternion.Euler(0f, 0f, z)
         );
-        hit.transform.localScale *= 2f;
+        hit.transform.localScale *= Random.Range(2f, 3f);
     }
 }

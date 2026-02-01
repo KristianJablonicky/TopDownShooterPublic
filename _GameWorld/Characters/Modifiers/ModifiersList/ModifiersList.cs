@@ -10,12 +10,13 @@ public class ModifiersList
     {
         Modifiers = new();
     }
-    public bool ModifierExistsOfType(Type searchedForType, int stacks)
+    public bool ModifierExistsOfType(Type searchedForType, int stacks, float duration)
     {
         var alreadyExists = Modifiers.FirstOrDefault(m => m.ModifierType == searchedForType);
         if (alreadyExists is not null)
         {
             alreadyExists.Stacks.Adjust(stacks);
+            alreadyExists.Duration.Set(duration);
             return true;
         }
         return false;

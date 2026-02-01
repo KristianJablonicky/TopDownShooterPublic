@@ -135,7 +135,8 @@ public enum DataKeyInt
     HighScore,
     SettingsVolume,
     SettingsRelativeSounds,
-    SettingsRelativeCrosshair
+    SettingsRelativeCrosshair,
+    SettingsCrosshairColor
 }
 
 public enum GameMode

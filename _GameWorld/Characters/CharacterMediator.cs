@@ -15,9 +15,10 @@ public class CharacterMediator : MonoBehaviour, IResettable
     [field: SerializeField] public AbilityRPCs AbilityRPCs { get; private set; }
     [field: SerializeField] public PlayerVision PlayerVision { get; private set; }
     [field: SerializeField] public AnimationController AnimationController { get; private set; }
+    [field: SerializeField] public DeathDissolveMediator DeathDissolveMediator { get; private set; }
     [field: SerializeField] public BloodManager BloodManager { get; private set; }
-
-    public Ascendance Ascendance { get; private set; }
+    [field: SerializeField] public CharacterParticlesMediator ParticlesMediator { get; private set; }
+    [field: SerializeField] public Ascendance Ascendance { get; private set; }
     public ModifiersList Modifiers { get; private set; } = new ModifiersList();
 
     [SerializeField] private GameObject characterPhysics;
@@ -38,7 +39,7 @@ public class CharacterMediator : MonoBehaviour, IResettable
     
     public PlayerData playerData;
 
-    private Corpse corpse;
+    public CharacterToolkit Toolkit => AbilityManager.Toolkit;
     public bool IsAlive => HealthComponent.CurrentHealth > 0;
 
     public event Action<Role> NewRoleAssigned;
@@ -53,13 +54,13 @@ public class CharacterMediator : MonoBehaviour, IResettable
     /// The first passed object is the mediator of the killed character, the second is the killer
     /// </summary>
     public event Action<CharacterMediator, CharacterMediator> Killed, ScoredAKill;
-    public event Action<CharacterMediator> Died, Respawned;
+    public event Action<CharacterMediator> Died, Respawned, RespawnedAfterDying;
     public event Action Disconnected;
 
     private void Awake()
     {
-        Ascendance = new(this);
-        BloodManager?.Init(this);
+        if (IsNPC) return;
+        BloodManager?.Init(this, ParticlesMediator.bloodParticles);
     }
 
     public void Die(CharacterMediator killer)
@@ -83,26 +84,26 @@ public class CharacterMediator : MonoBehaviour, IResettable
             HealthComponent.CurrentHealth.Set(0);
         }
 
-
-        characterPhysics.SetActive(active);
-
         PlayerVision?.ChangeActivityIfPlayerOrAlly(active);
 
         if (active)
         {
-            if(corpse != null)
-            {
-                Destroy(corpse.gameObject);
-            }
+            characterPhysics.SetActive(active);
+            
+            Tweener.Tween(0f, 0f, 1f, 0.25f, TweenStyle.quadratic,
+                value => SpriteRenderer.SetAlpha(value));
         }
         else
         {
-            corpse = AnimationController?.DeathAnimation(SpriteRenderer.color);
+            DeathDissolveMediator?.Dissolve(this);
+            characterPhysics.SetActive(active);
         }
     }
 
     public void Reset()
     {
+        bool wasAlive = IsAlive;
+
         SetActivity(true);
         Gun?.Reset();
         HealthComponent.Reset();
@@ -120,6 +121,10 @@ public class CharacterMediator : MonoBehaviour, IResettable
         }
 
         Respawned?.Invoke(this);
+        if (!wasAlive)
+        {
+            RespawnedAfterDying?.Invoke(this);
+        }
     }
 
     private void OnDestroy()
@@ -129,7 +134,7 @@ public class CharacterMediator : MonoBehaviour, IResettable
 
     public void RequestGotAKillEventInvoke(CharacterMediator victim)
     {
-        ScoredAKill?.Invoke(victim, this);
+        if (victim != this) ScoredAKill?.Invoke(victim, this);
     }
 
     #region Utilities
@@ -145,22 +150,49 @@ public class CharacterMediator : MonoBehaviour, IResettable
         {
             return InRange(position, maxRange);
         }
-
         return InRange(position, maxRange)
             || InRange(FloorUtilities.GetPositionOnTheOtherFloor(position), maxRange);
     }
 
-    private bool InRange(Vector2 position, float maxRange) => Vector2.Distance(GetPosition(), position) <= maxRange;
-
-    public bool LookingAt(CharacterMediator otherMediator, float angle)
+    private bool InRange(Vector2 position, float maxRange) => GetDistance(position) <= maxRange;
+    public float GetDistance(CharacterMediator otherMediator) => GetDistance(otherMediator.GetPosition());
+    public float GetDistance(Vector2 position) => Vector2.Distance(GetPosition(), position);
+    public bool LookingAt(CharacterMediator otherMediator, float angle, bool ignoreFloors)
     {
-        var diff = otherMediator.GetPosition() - GetPosition();
+        Vector2 otherPosition;
+        if (ignoreFloors
+        &&  FloorUtilities.GetCurrentFloor(this) != FloorUtilities.GetCurrentFloor(otherMediator))
+        {
+            otherPosition = FloorUtilities.GetPositionOnTheOtherFloor(otherMediator);
+        }
+        else
+        {
+            otherPosition = otherMediator.GetPosition();
+        }
+        var diff = otherPosition - GetPosition();
 
         var targetAngle = Mathf.Atan2(diff.y, diff.x) * Mathf.Rad2Deg;
 
         var angleDiff = Mathf.DeltaAngle(RotationController.GetRotationAngle, targetAngle);
 
         return Mathf.Abs(angleDiff) <= angle * 0.5f;
+    }
+
+    private bool? _cachedTeamMateCheck = null;
+
+    public bool? IsTeamMate()
+    {
+        if (_cachedTeamMateCheck.HasValue)
+        {
+            return _cachedTeamMateCheck.Value;
+        }
+
+        if (!GameStateManager.Instance.GameInProgress) return null;
+        
+        _cachedTeamMateCheck = IsLocalPlayer ||
+            playerData.GetTeamMate().Mediator.IsLocalPlayer;
+
+        return _cachedTeamMateCheck.Value;
     }
 
     #endregion

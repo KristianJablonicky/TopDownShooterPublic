@@ -9,51 +9,67 @@ public class BloodDrinker : PassiveAbility
     [SerializeField] private int healthThreshold = 30;
     [SerializeField] private int healOnKill = 50;
     [SerializeField] private float beforeKillDelay = 0.5f;
-    private Dictionary<CharacterMediator, bool> mediatorDrained;
 
+    [SerializeField] private OneTimeAnimation drainAnimationPrefab;
+    private Dictionary<CharacterMediator, bool> mediatorDrained;
+    protected override void SetUp() { }
     protected override void SetUpRPCsReady()
     {
         if (!owner.IsLocalPlayer) return;
+        owner.NetworkInput.OnDamageDealtToMediator += OnDamageDealt;
+        owner.ScoredAKill += OnKill;
+
+        var manager = CharacterManager.Instance;
 
         mediatorDrained = new();
-        var manager = CharacterManager.Instance;
         foreach (var player in manager.Mediators.Values)
         {
-            SubscribeCharacter(player);
+            AddToDictionary(player);
         }
-        manager.CharacterRegistered += SubscribeCharacter;
+        manager.CharacterRegistered += AddToDictionary;
     }
 
-    private void SubscribeCharacter(CharacterMediator character)
+    private void AddToDictionary(CharacterMediator character)
     {
         if (character == owner) return;
         mediatorDrained.Add(character, false);
-        character.HealthComponent.M1TookDamageFromM2 += OnDamageTaken;
     }
 
-    private void OnDamageTaken(int damage, CharacterMediator hitMediator, CharacterMediator hittingMediator)
+    private void OnDamageDealt(int damage, DamageTag tag, CharacterMediator hitMediator)
     {
-        // someone else hit the player
-        if (hittingMediator != owner) return;
+        if (tag != DamageTag.Shot) return; // just in case
 
-        // this player has already been drained
-        if (mediatorDrained[hitMediator]) return;
+        // this player has already been drained or is an NPC
+        if (mediatorDrained[hitMediator]
+            && !hitMediator.IsNPC) return;
+
         var hc = hitMediator.HealthComponent;
-        if (hc.CurrentHealth <= healthThreshold && hc.CurrentHealth > 0)
+        if (hc.CurrentHealth <= healthThreshold && hc.CanTakeDamage)
         {
             mediatorDrained[hitMediator] = true;
             ExecuteAfterDelay(hitMediator);
         }
     }
 
-    private async void ExecuteAfterDelay(CharacterMediator hitMediator)
+    private void OnKill(CharacterMediator killedMediator, CharacterMediator killer)
     {
-        await Task.Delay((int)(beforeKillDelay * 1000f));
-        hitMediator.HealthComponent.TakeLethalDamage();
         owner.NetworkInput.RequestHealRpc(healOnKill, true);
     }
 
-    protected override void SetUp() { }
+    private async void ExecuteAfterDelay(CharacterMediator hitMediator)
+    {
+        TryInvokeRPC<DraculaRPCs>(rpcs => rpcs.RequestShowBloodDrinkerProcRPC(hitMediator.PlayerId));
+        await Task.Delay((int)(beforeKillDelay * 1000f));
+        hitMediator.HealthComponent.TakeLethalDamage(owner, DamageTag.Ability);
+    }
+
+    public void ShowAnimation(ulong playerID)
+    {
+        var hitMediator = CharacterManager.Instance.Mediators[playerID];
+        var animation = Instantiate(drainAnimationPrefab, hitMediator.GetTransform());
+        animation.PlayAnimation(beforeKillDelay);
+    }
+
     protected override void AbstractReset()
     {
         if (mediatorDrained is null) return;

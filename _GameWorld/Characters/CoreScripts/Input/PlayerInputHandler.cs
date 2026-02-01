@@ -19,6 +19,7 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private Gun gun;
 
     [SerializeField] private float cursorAccuracyMultiplier = 0.1f;
+    [SerializeField] private float pingCoolDown = 2.5f;
 
     private AbilityManager abilityManager;
 
@@ -37,7 +38,6 @@ public class PlayerInputHandler : MonoBehaviour
     {
         enabled = false;
         updateAction = UpdateInputAlive;
-        // TODO: remove SetActive(true); once a smarter approach towards death system is chosen
         mediator.Died += (_) => { gameObject.SetActive(true); updateAction = null; };
         mediator.Ascendance.SpiritLeft += (_) => { updateAction = UpdateInputPostMortem; };
         mediator.Respawned += (_) => updateAction = UpdateInputAlive;
@@ -114,8 +114,8 @@ public class PlayerInputHandler : MonoBehaviour
         // TODO: reconsider adding in walk
         //ChangeOnHoldState(KeyCode.LeftShift, movementController.Walk);
 
-        float moveX = Input.GetAxisRaw("Horizontal");
-        float moveY = Input.GetAxisRaw("Vertical");
+        var moveX = Input.GetAxisRaw("Horizontal");
+        var moveY = Input.GetAxisRaw("Vertical");
         movementController.WalkInDirection(moveX, moveY);
     }
 
@@ -179,13 +179,14 @@ public class PlayerInputHandler : MonoBehaviour
     private void UpdateMousePostMortem()
     {
         var scroll = Input.GetAxis("Mouse ScrollWheel");
+        var heldControl = Input.GetKey(KeyCode.LeftControl);
         if (scroll > 0f)
         {
-            HandleScrolling(false, true);
+            HandleScrolling(heldControl, true);
         }
         else if (scroll < 0f)
         {
-            HandleScrolling(false, false);
+            HandleScrolling(heldControl, false);
         }
 
         if (Input.GetKeyDown(KeyCode.Mouse2))
@@ -231,28 +232,25 @@ public class PlayerInputHandler : MonoBehaviour
                 uiCamera,
                 out Vector2 localPoint))
         {
-            return Vector2.zero; // mouse not over RawImage
+            return Vector2.zero;
         }
-        // Clamp local point to RawImage rect
+        
         var rect = rawImage.rectTransform.rect;
         localPoint.x = Mathf.Clamp(localPoint.x, rect.xMin, rect.xMax);
         localPoint.y = Mathf.Clamp(localPoint.y, rect.yMin, rect.yMax);
 
-        // Normalize local point to [0,1] UV
         var u = (localPoint.x - rect.x) / rect.width;
         var v = (localPoint.y - rect.y) / rect.height;
 
-        // Convert to RenderTexture pixel coords
         var px = u * renderTexture.width;
         var py = v * renderTexture.height;
 
-        // Now map into player camera space
         if (camera == null)
         {
             camera = playerCamera;
         }
 
-        return camera.ScreenToWorldPoint(new Vector3(px, py, playerCamera.nearClipPlane));
+        return camera.ScreenToWorldPoint(new(px, py, playerCamera.nearClipPlane));
     }
     private void Shoot(Vector2 cursorPos, bool firstPress)
     {
@@ -277,21 +275,8 @@ public class PlayerInputHandler : MonoBehaviour
             if (!gun.CanReload()) return;
             networkInput.RequestReloadRpc();
         }
-
-        if (pingReady && Input.GetKeyDown(KeyCode.V))
-        {
-            networkInput.RequestPingRpc(CursorPosition, mediator.PlayerId);
-            StartCoroutine(PingCoolDown());
-        }
     }
 
-    private bool pingReady = true;
-    private IEnumerator PingCoolDown()
-    {
-        pingReady = false;
-        yield return new WaitForSeconds(3f);
-        pingReady = true;
-    }
     private void UpdateAbilities()
     {
         UpdateAbility(abilityManager.MovementAbility, false);
@@ -328,25 +313,34 @@ public class PlayerInputHandler : MonoBehaviour
         {
             EscapePressed?.Invoke();
         }
+
+        if (pingReady && Input.GetKeyDown(KeyCode.V))
+        {
+            networkInput.RequestPingRpc(CursorPosition, AimDirection, mediator.PlayerId);
+            StartCoroutine(PingCoolDown());
+        }
+    }
+
+    private bool pingReady = true;
+    private IEnumerator PingCoolDown()
+    {
+        pingReady = false;
+        yield return new WaitForSeconds(pingCoolDown);
+        pingReady = true;
     }
 
     private void UpdateDebug()
     {
-        if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(100, DamageTag.Neutral, mediator);
+        if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(100, DamageTag.Neutral, mediator, mediator);
         if (Input.GetKeyDown(KeyCode.H))
         {
-
-            mediator.playerData.PlayerScore.Kills--;
-
-            new Modifier(mediator,
-                new ObjectiveVitalityModifier(), 1f, 2, null);
-            new Modifier(mediator,
-                new ObjectiveCoolDownModifier(), 1f, 2, null);
+            mediator.NetworkInput.DealDamage(30, DamageTag.Neutral, mediator, mediator);
         }
+        /*
         if (Input.GetKeyDown(KeyCode.G))
         {
-            GameStateManager.Instance.ObjectiveCaptured(mediator.playerData.Team);
         }
+        */
     }
 }
 

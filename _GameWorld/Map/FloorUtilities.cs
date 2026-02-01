@@ -7,8 +7,8 @@ public static class FloorUtilities
     {
         return targetFloor switch
         {
-            Floor.First => -1 * Constants.floorYOffset,
-            Floor.Second => Constants.floorYOffset,
+            Floor.Basement => -1 * Constants.floorYOffset,
+            Floor.Outside => Constants.floorYOffset,
             _ => throw new System.NotImplementedException(),
         };
     }
@@ -24,7 +24,8 @@ public static class FloorUtilities
         var yOffset = GetYOffset(targetFloor);
         return position + (Vector2.up * yOffset);
     }
-
+    public static Vector2 GetPositionOnTheOtherFloor(CharacterMediator mediator)
+        => GetPositionOnTheOtherFloor(mediator.GetPosition());
     public static Vector2 GetPositionOnTheOtherFloor(Vector2 position)
     {
         var floor = GetCurrentFloor(position);
@@ -34,8 +35,8 @@ public static class FloorUtilities
 
     public static float? GetYOffset(AimDirection direction, Floor currentFloor)
     {
-        if (currentFloor == Floor.First && direction == AimDirection.Down
-            || currentFloor == Floor.Second && direction == AimDirection.Up
+        if (currentFloor == Floor.Basement && direction == AimDirection.Down
+            || currentFloor == Floor.Outside && direction == AimDirection.Up
             || direction == AimDirection.Straight)
         {
             return null;
@@ -43,18 +44,18 @@ public static class FloorUtilities
 
         return currentFloor switch
         {
-            Floor.First => Constants.floorYOffset,
-            Floor.Second => -Constants.floorYOffset,
+            Floor.Basement => Constants.floorYOffset,
+            Floor.Outside => -Constants.floorYOffset,
             _ => throw new System.NotImplementedException()
         };
     }
-
+    public static Floor GetCurrentFloor(CharacterMediator mediator)
+        => GetCurrentFloor(mediator.GetPosition());
     public static Floor GetCurrentFloor(Transform transform)
-    {
-        return GetCurrentFloor(transform.position);
-    }
-    public static Floor GetCurrentFloor(Vector2 position) => position.y < yThreshold ? Floor.First : Floor.Second;
+        => GetCurrentFloor(transform.position);
+    public static Floor GetCurrentFloor(Vector2 position)
+        => position.y < yThreshold ? Floor.Basement : Floor.Outside;
 
-
-    public static Floor GetDifferentFloor(Floor floor) => floor == Floor.First ? Floor.Second : Floor.First;
+    public static Floor GetDifferentFloor(Floor floor)
+        => floor == Floor.Basement ? Floor.Outside : Floor.Basement;
 }

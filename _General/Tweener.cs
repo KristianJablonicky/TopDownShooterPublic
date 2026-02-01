@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using UnityEditor;
 using UnityEngine;
 
 public class Tweener : MonoBehaviour
@@ -41,15 +42,15 @@ public class Tweener : MonoBehaviour
             if (invoker == null || invoker.Equals(null)) yield break;
 
             timeElapsed += Time.deltaTime;
-            float progress = Mathf.Clamp01(timeElapsed / duration);
-            float value = function(start, end, progress);
+            var progress = Mathf.Clamp01(timeElapsed / duration);
+            var value = function(start, end, progress);
 
             onUpdate?.Invoke(value);
 
             yield return null;
         }
 
-        onUpdate?.Invoke(end);
+        onUpdate?.Invoke(function(start, end, 1f));
         onExit?.Invoke();
     }
 
@@ -97,19 +98,24 @@ public class Tweener : MonoBehaviour
             onUpdate?.Invoke(value);
             yield return null;
         }
-
-        onUpdate?.Invoke(end);
+        Vector2 finalValue = new(
+            function(start.x, end.x, 1f),
+            function(start.y, end.y, 1f)
+        );
+        onUpdate?.Invoke(finalValue);
         onExit?.Invoke();
     }
 
-    private static float Linear(float start, float end, float t)
+    public static float Linear(float start, float end, float t)
         => Mathf.Lerp(start, end, t);
 
-    private static float Quadratic(float start, float end, float t)
+    public static float Quadratic(float start, float end, float t)
         => Mathf.Lerp(start, end, t * t);
 
-    private static float QuadraticEaseOut(float start, float end, float t)
+    public static float QuadraticEaseOut(float start, float end, float t)
         => Mathf.Lerp(start, end, 1 - (1 - t) * (1 - t));
+    public static float SinusPingPong(float start, float end, float t)
+        => Mathf.Lerp(start, end, Mathf.Sin(Mathf.PI * t));
 
     private static Func<float, float, float, float> GetFunc(TweenStyle style)
     {
@@ -118,6 +124,7 @@ public class Tweener : MonoBehaviour
             TweenStyle.linear => Linear,
             TweenStyle.quadratic => Quadratic,
             TweenStyle.quadraticEaseOut => QuadraticEaseOut,
+            TweenStyle.sinusPingPong => SinusPingPong,
             _ => Linear
         };
     }
@@ -127,5 +134,6 @@ public enum TweenStyle
 {
     linear,
     quadratic,
-    quadraticEaseOut
+    quadraticEaseOut,
+    sinusPingPong
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 public sealed class PlayerCameraController : CameraController
@@ -19,6 +20,9 @@ public sealed class PlayerCameraController : CameraController
     [Header("Post Mortem References")]
     [SerializeField] private RenderTexture playerRenderTexture;
     [SerializeField] private RenderTexture teamMateRenderTexture;
+    [SerializeField, Range(1f, 2f)] private float teammateViewZoom = 1.5f;
+    private int startPPU, zoomedPPU;
+    [SerializeField] private PixelPerfectCamera teammatePixelPerfectCamera;
 
     private float currentOffset, currentZoom = 1f;
 
@@ -28,6 +32,7 @@ public sealed class PlayerCameraController : CameraController
     {
         base.Awake();
         PlayerNetworkInput.PlayerSpawned += OnOwnerSpawned;
+        UpdateZoom((minZoom + maxZoom) / 2f);
     }
 
     private void OnOwnerSpawned(CharacterMediator mediator)
@@ -63,22 +68,40 @@ public sealed class PlayerCameraController : CameraController
         gameInProgress = true;
         teamMate = CharacterManager.Instance.LocalPlayer.GetTeamMate().Mediator;
         teamMate.Ascendance.SpiritLeft += OnTeamMateDeath;
-    }
 
+        startPPU = teammatePixelPerfectCamera.assetsPPU;
+        zoomedPPU = Mathf.RoundToInt(startPPU * teammateViewZoom);
+
+        HandleAllyPPU(true);
+
+    }
     private void OnDeath(CharacterMediator mediator)
     {
         if (!gameInProgress) return;
         if (teamMate.IsAlive)
         {
+            HandleAllyPPU(false);
+
             teamMateCamera.targetTexture = playerRenderTexture;
             teamMateView.SetActive(false);
         }
         teamMate.PlayerVision.SwitchLights(true);
     }
-
+    private void HandleAllyPPU(bool zoom)
+    {
+        if (zoom)
+        {
+            teammatePixelPerfectCamera.assetsPPU = zoomedPPU;
+        }
+        else
+        {
+            teammatePixelPerfectCamera.assetsPPU = startPPU;
+        }
+    }
     private void OnRespawn(CharacterMediator mediator)
     {
         if (!gameInProgress) return;
+        HandleAllyPPU(true);
         teamMateCamera.targetTexture = teamMateRenderTexture;
         teamMate.PlayerVision.SwitchLights(false);
         teamMateView.SetActive(true);
@@ -117,10 +140,14 @@ public sealed class PlayerCameraController : CameraController
         {
             var newZoom = currentZoom + direction * scrollStepZoom;
             newZoom = Mathf.Clamp(newZoom, minZoom, maxZoom);
-            currentZoom = newZoom;
-
-            renderUIImage.transform.localScale = new Vector2(newZoom, newZoom);
+            UpdateZoom(newZoom);
         }
+    }
+
+    private void UpdateZoom(float newZoom)
+    {
+        currentZoom = newZoom;
+        renderUIImage.transform.localScale = new Vector2(newZoom, newZoom);
     }
 
     private (float, float) UpdatePositionZoomed()
