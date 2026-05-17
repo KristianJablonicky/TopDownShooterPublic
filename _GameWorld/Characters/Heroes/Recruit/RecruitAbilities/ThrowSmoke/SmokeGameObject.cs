@@ -13,6 +13,7 @@ public class SmokeGameObject : DestroyOnRoundEnd
     [SerializeField] private FadeOutThenGetDestroyed fadeOutAnimation;
     [SerializeField] private SoundPlayer soundPlayer;
     [SerializeField] private AudioClip soundClip;
+    [SerializeField] private ParticleSystem particleSpawner;
 
     private void Awake()
     {
@@ -20,6 +21,14 @@ public class SmokeGameObject : DestroyOnRoundEnd
         soundPlayer.RequestPlaySound(transform, soundClip, false);
         fadeOutAnimation.PlayAnimation(Duration);
         guaranteedVision.SetActive(false);
+    }
+
+    protected override void VirtualCleanUp()
+    {
+        particleSpawner.transform.SetParent(transform.parent);
+        particleSpawner.Stop(true, ParticleSystemStopBehavior.StopEmitting); 
+        Destroy(particleSpawner.gameObject, 3f);
+        Destroy(soundPlayer.gameObject);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)

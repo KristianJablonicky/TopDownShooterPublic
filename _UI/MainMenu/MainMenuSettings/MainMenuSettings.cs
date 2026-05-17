@@ -13,6 +13,7 @@ public class MainMenuSettings : MonoBehaviour
 
     private void Awake()
     {
+        return;
         var storage = DataStorage.Instance;
         volumeSlider.value = storage.GetInt(DataKeyInt.SettingsVolume);
         relativeSounds.isOn = storage.GetInt(DataKeyInt.SettingsRelativeSounds) == 1;
@@ -37,8 +38,9 @@ public class MainMenuSettings : MonoBehaviour
 
     private void OnDestroy()
     {
+        return;
         var storage = DataStorage.Instance;
-        storage.SetInt(DataKeyInt.SettingsVolume, (int)volumeSlider.value);
+        //storage.SetInt(DataKeyInt.SettingsVolume, (int)volumeSlider.value);
         storage.SetInt(DataKeyInt.SettingsRelativeSounds, relativeSounds.isOn ? 1 : 0);
         storage.SetInt(DataKeyInt.SettingsRelativeCrosshair, relativeCrosshair.isOn ? 1 : 0);
     }

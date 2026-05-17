@@ -8,6 +8,7 @@ public class SinglePlayerManager : SingletonMonoBehaviour<SinglePlayerManager>
 {
     [SerializeField] private SinglePlayerTransport singlePlayerTransport;
     [SerializeField] private PracticeManager practiceManager;
+    [SerializeField] private AltarDefenseManager altarDefenseManager;
 
     [Header("UI references")]
     [SerializeField] private GameObject highScores;
@@ -18,17 +19,21 @@ public class SinglePlayerManager : SingletonMonoBehaviour<SinglePlayerManager>
     [SerializeField] private float delayBeforeStart = 3f;
     [SerializeField] private float trainingDuration = 60f;
     [SerializeField] private Vector2 startingPosition;
+    [SerializeField] private GameObject trainingDummiesContainer;
 
     private TrainingScoreManager scoreManager;
     protected override void OverriddenAwake()
     {
-        if (DataStorage.Instance.GetGameMode() != GameMode.SinglePlayer)
+        if (!DataStorage.IsSinglePlayer)
         {
-            //gameObject.SetActive(false);
             Destroy(gameObject);
         }
         else
         {
+            if (DataStorage.Instance.GetGameMode() != GameMode.Training)
+            {
+                Destroy(trainingDummiesContainer);
+            }
             StartCoroutine(StartHostAfterDelay());
         }
     }
@@ -40,10 +45,18 @@ public class SinglePlayerManager : SingletonMonoBehaviour<SinglePlayerManager>
         NetworkHeroSpawner.StartHost();
 
         scoreManager = new(scoreBinder);
-        practiceManager.Init(scoreManager);
+        if (practiceManager != null)
+        {
+            practiceManager.Init(scoreManager);
+        }
 
         highScores.SetActive(true);
         UpdateHighScore();
+
+        if (DataStorage.Instance.GetGameMode() == GameMode.AltarDefense)
+        {
+            altarDefenseManager.StartDefense();
+        }
     }
 
     public async void StartTraining()
@@ -85,6 +98,6 @@ public class SinglePlayerManager : SingletonMonoBehaviour<SinglePlayerManager>
 
     private void UpdateHighScore()
     {
-        highScore.text = $"High Score: {DataStorage.Instance.GetIntHeroSpecific(DataKeyInt.HighScore, null)}";
+        highScore.text = $"High Score: {DataStorage.Instance.GetIntHeroSpecific(DataKeyInt.HighScore, null, null)}";
     }
 }

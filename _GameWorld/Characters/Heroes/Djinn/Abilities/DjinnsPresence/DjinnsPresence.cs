@@ -16,7 +16,6 @@ public class DjinnsPresence : AbilityPostMortem
     {
         if (rpcs.remainingWishes > 0)
         {
-            rpcs.RequestWishPostMortemRPC(teamMate.PlayerId);
             rpcs.remainingWishes--;
             OnCast();
             healCoroutine = owner.StartCoroutine(CastAfterDelay());
@@ -27,24 +26,28 @@ public class DjinnsPresence : AbilityPostMortem
     {
         yield return new WaitForSeconds(castDelay);
         rpcs.RequestWishRPC(owner.PlayerId);
+        rpcs.RequestWishPostMortemRPC(teamMate.PlayerId);
     }
 
     protected override void ThirdEyeOpen()
     {
         rpcs.RequestReleaseDjinnRPC(owner.PlayerId, true);
     }
-    
+
     protected override void ThirdEyeClosed()
     {
-        if(healCoroutine != null)
+        if (healCoroutine != null)
         {
             owner.StopCoroutine(healCoroutine);
         }
     }
-    
+
     protected override void SetUpRPCsReady()
     {
         TryInvokeRPC<DjinnRPCs>(rpcs => this.rpcs = rpcs);
     }
-    protected override string _GetAbilitySpecificStats() => string.Empty;
+    public override string _GetSpecificAttributes()
+    {
+        return $"Cast delay: {castDelay}s";
+    }
 }

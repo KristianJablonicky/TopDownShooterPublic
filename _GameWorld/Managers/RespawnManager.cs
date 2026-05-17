@@ -21,7 +21,6 @@ public class RespawnManager : SingletonMonoBehaviour<RespawnManager>
         if (gameInProgress) yield break;
         yield return new WaitForSeconds(3f);
         if (gameInProgress) yield break;
-
         if (mediator == null) yield break;
 
         mediator.Reset();

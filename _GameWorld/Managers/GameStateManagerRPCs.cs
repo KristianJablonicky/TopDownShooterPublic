@@ -9,7 +9,10 @@ public class GameStateManagerRPCs : NetworkBehaviour
     [Rpc(SendTo.Everyone)]
     public void RequestGameStartRPC(ulong[] sortedIDs)
     {
+        _ = CharacterManager.Instance.PreMatch(sortedIDs);
+        /*
         GameStateNotifications.Instance.ShowMessage("Starting soon...");
         characterManager.AllPlayersPickedATeam(sortedIDs);
+        */
     }
 }

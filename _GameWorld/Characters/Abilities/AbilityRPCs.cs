@@ -59,7 +59,15 @@ public class AbilityRPCs : NetworkBehaviour
     [Rpc(SendTo.Server)]
     public void RequestApplyForceRPC(ulong id, Vector2 force)
     {
-        ApplyForceRPC(force, GetRpcParams(id));
+        var mediator = CharacterManager.Instance.Mediators[id];
+        if (!mediator.IsNpc)
+        {
+            ApplyForceRPC(force, GetRpcParams(id));
+        }
+        else
+        {
+            mediator.MovementController.RigidBody.AddForce(force, ForceMode2D.Impulse);
+        }
     }
 
     [Rpc(SendTo.Server)]

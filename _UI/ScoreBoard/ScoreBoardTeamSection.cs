@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 public class ScoreBoardTeamSection : MonoBehaviour
@@ -7,6 +8,10 @@ public class ScoreBoardTeamSection : MonoBehaviour
     [SerializeField] private GameObject[] entrySpots;
 
     [SerializeField] private ObservableVariableBinder teamWins;
+
+    [SerializeField] private RectTransform teamBackground;
+
+    public PlayerEntryUI GetPlayerEntry(int index) => playerEntries[index];
 
     public void Init()
     {
@@ -25,6 +30,28 @@ public class ScoreBoardTeamSection : MonoBehaviour
             entry.Demoted += DemoteEntry; 
         }
     }
+
+    public void Init(PlayerEntryData player1, PlayerEntryData player2)
+    {
+        playerEntries[0].Init(player1);
+        playerEntries[1].Init(player2);
+        if (RoundHistory.LastMatchRoundResults is null) return; // should not happen.
+
+        var wins = RoundHistory.LastMatchRoundResults
+                .Where(r => r.Team == (int)team)
+                .Count();
+
+        if (wins > RoundHistory.LastMatchRoundResults.Count / 2)
+        {
+            teamWins.SetText($"{wins} (won)");
+            teamBackground.anchorMax = new Vector2(1f, 1f);
+        }
+        else
+        {
+            teamWins.SetText(wins.ToString());
+        }
+    }
+
     private void PromoteEntry(PlayerEntryUI entry) => PutEntryAsFirst(entry, true);
     private void DemoteEntry(PlayerEntryUI entry) => PutEntryAsFirst(entry, false);
     private void PutEntryAsFirst(PlayerEntryUI entry, bool promote)

@@ -1,19 +1,16 @@
 using System;
 using UnityEngine;
 
-public abstract class Ability : ScriptableObject, IResettable
+public abstract class Ability : ScriptableObjectBase, IResettable
 {
-    [field: SerializeField] public string Name { get; private set; }
-    [field: SerializeField, TextArea] public string Description { get; private set; }
-    [SerializeField, TextArea] private string longDescription;
-    [field: SerializeField] public Sprite Icon { get; private set; }
+    [field: SerializeField, TextArea] public string LongDescription { get; private set; }
     [SerializeField] private AudioClip[] audioClips;
 
     public event Action<Sprite> IconChanged;
 
     protected CharacterMediator owner;
     protected AbilityRPCs characterRPCs;
-    private SoundPlayer soundPlayer;
+    protected SoundPlayer soundPlayer;
 
     public Ability Factory(CharacterMediator owner)
     {
@@ -22,14 +19,17 @@ public abstract class Ability : ScriptableObject, IResettable
         instance.SetUp();
         return instance;
     }
-
-    public string GetDescription() => $"{Description}\n{_GetAbilitySuffix()}";
     public string GetLongDescription()
     {
-        return $"{longDescription}\n\n{_GetAbilitySpecificStats()}\n{_GetAbilitySuffix()}";
+        if (this is ActiveAbility activeAbility)
+        {
+            return $"{LongDescription}\n\n{_GetSpecificAttributes()}\nCooldown: {activeAbility.CoolDown}s";
+        }
+        else
+        {
+            return $"{LongDescription}\n\n{_GetSpecificAttributes()}";
+        }
     }
-    protected abstract string _GetAbilitySpecificStats();
-    protected abstract string _GetAbilitySuffix();
 
     public void SetAbilityRPC(AbilityRPCs rpcs)
     {
@@ -99,6 +99,13 @@ public abstract class Ability : ScriptableObject, IResettable
 
 public abstract class PassiveAbility : Ability
 {
-    protected override string _GetAbilitySuffix() => "";
     public override AbilityType GetAbilityType() => AbilityType.Passive;
+    protected override void SetUpRPCsReady()
+    {
+        if (owner.IsOwner)
+        {
+            SafeSetUpWithRPCsReady();
+        }
+    }
+    protected abstract void SafeSetUpWithRPCsReady();
 }

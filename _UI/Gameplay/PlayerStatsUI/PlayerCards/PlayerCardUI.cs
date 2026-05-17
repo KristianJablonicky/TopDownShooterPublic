@@ -3,21 +3,23 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PlayerCardUI : MonoBehaviour
+public class PlayerCardUI : PlayerCardConcrete
 {
     [Header("UI References")]
-    [SerializeField] private Image HeroGraphic;
     [SerializeField] private Image filledBorder, filledBorderWhite;
+    [SerializeField] private JaggedPolygonUI whiteJaggedPolygon;
     [SerializeField] private TMP_Text currentHealth, playerName;
+    [SerializeField] private CanvasGroup playerNameCanvasGroup;
     [SerializeField] private bool visibleToLocalPlayer = true;
+    [SerializeField] private Emote emote;
     [field: SerializeField] public DamageSummaryEntryManager DamageSummaryEntryManager { get; private set; }
+
 
     [Header("Visual settings")]
     [SerializeField, Range(0f, 1f)] private float healthFloorFill = 0f;
     [SerializeField] float animationDuration = 0.5f, initialDelay = 0.25f;
     [SerializeField] private Transform rotatingElement;
     [SerializeField] private bool reverseRotation = false;
-    [SerializeField] private float colorMultiplier = 1.5f;
     [SerializeField] private float colorGBMinValues = 0.25f;
 
     private float sign;
@@ -25,11 +27,13 @@ public class PlayerCardUI : MonoBehaviour
 
     public Action<ulong, PlayerCardUI> CardSetUp;
 
+    private CharacterMediator owner;
+
     public void Init(CharacterMediator mediator)
     {
-        filledBorder.color = mediator.Toolkit.PrimaryColor * colorMultiplier;
-        HeroGraphic.sprite = mediator.Toolkit.SplashArt;
+        owner = mediator;
 
+        cardBase.Init(mediator.Toolkit.CharacterVisuals);
 
         sign = rotatingElement.transform.eulerAngles.z < 180f ? 1f : -1f;
         if (reverseRotation) sign *= -1f;
@@ -39,14 +43,23 @@ public class PlayerCardUI : MonoBehaviour
         mediator.Died += OnDeathAndRespawn;
         mediator.RespawnedAfterDying += OnDeathAndRespawn;
 
-        if (DataStorage.Instance.GetGameMode() != GameMode.SinglePlayer)
+        if (DataStorage.IsSinglePlayer)
         {
-            playerName.text = mediator.PlayerName;
-            //playerName.gameObject.transform.SetParent(transform);
+            Destroy(playerName.transform.parent.gameObject);
         }
         else
         {
-            Destroy(playerName.gameObject);
+            playerName.text = mediator.PlayerName;
+            if (mediator.IsBot)
+            {
+                playerName.color = CommonColors.Instance.BotNameColor;
+            }
+            EscapeMenuManager.Instance.WindowBase.VisibilityChanged += newState =>
+                Tweener.TweenCanvasGroupAtRate(playerNameCanvasGroup, 0.25f, TweenStyle.quadratic, newState);
+            ScoreBoard.Instance.Shown += newState =>
+                Tweener.TweenCanvasGroupAtRate(playerNameCanvasGroup, 0.25f, TweenStyle.quadratic, newState);
+            playerNameCanvasGroup.alpha = 0f;
+
         }
 
         if (visibleToLocalPlayer)
@@ -59,10 +72,15 @@ public class PlayerCardUI : MonoBehaviour
         {
             SetDefaultFillAmount(0f);
             currentHealth.text = string.Empty;
+            GameStateManager.Instance.RoundEnded += OnRoundStart;
+            RoundStartWait.Instance.OnRoundStartWait += ShowEnemyHealthOnRoundEnd;
         }
+
+        emote.Init(mediator);
 
         CardSetUp?.Invoke(mediator.PlayerId, this);
     }
+
 
     private void SetDefaultFillAmount(float fillAmount)
     {
@@ -109,22 +127,29 @@ public class PlayerCardUI : MonoBehaviour
         
         if (currentHealthValue > 0)
         {
-            var ratio = (float)currentHealthValue / health.MaxHealth;
-            ratio = healthFloorFill + (1f - healthFloorFill) * ratio;
+            var target = GetTargetHealth(health);
 
             StopHpCoroutines();
-            hpDropCoroutine = Tween(filledBorder, ratio, 0f, 0f);
-            whiteHpDrop = Tween(filledBorderWhite, ratio, animationDuration, initialDelay);
-            flashCoroutine = FlashRed(filledBorderWhite, animationDuration);
+            hpDropCoroutine = Tween(filledBorder, target, 0f, 0f);
+            whiteHpDrop = Tween(filledBorderWhite, target, animationDuration, initialDelay);
+            flashCoroutine = FlashRed(whiteJaggedPolygon, animationDuration);
             currentHealth.text = currentHealthValue.ToString();
         }
         else
         {
             StopHpCoroutines();
-            filledBorderWhite.fillAmount = 0f;
-            filledBorder.fillAmount = 0f;
-            currentHealth.text = string.Empty;
+            ClearHealth();
         }
+    }
+    private float GetTargetHealth(HealthComponent health)
+    {
+        var ratio = (float)health.CurrentHealth / health.MaxHealth;
+        return healthFloorFill + (1f - healthFloorFill) * ratio;
+    }
+    private void ClearHealth()
+    {
+        SetDefaultFillAmount(0f);
+        currentHealth.text = string.Empty;
     }
 
     private void StopHpCoroutines()
@@ -145,16 +170,27 @@ public class PlayerCardUI : MonoBehaviour
         );
     }
 
-    private Coroutine FlashRed(Image filledBorderWhite, float animationDuration)
+    private Coroutine FlashRed(JaggedPolygonUI filledBorderWhite, float animationDuration)
     {
         return StartCoroutine(
             Tweener.TweenCoroutine(this, 1f, colorGBMinValues, animationDuration,
                 TweenStyle.sinusPingPong,
                 value =>
                 {
-                    filledBorderWhite.color = new(1f, value, value);
+                    filledBorderWhite.SetColor(new(1f, value, value));
                 }
             )
         );
+    }
+    private void OnRoundStart()
+    {
+        if (!owner.IsAlive) return;
+        var hc = owner.HealthComponent;
+        SetDefaultFillAmount(GetTargetHealth(hc));
+        currentHealth.text = hc.CurrentHealth.ToString();
+    }
+    private void ShowEnemyHealthOnRoundEnd(float duration)
+    {
+        CoroutineUtilities.ExecuteAfterDelay(duration, ClearHealth);
     }
 }

@@ -1,13 +1,12 @@
 using System;
 using System.Collections;
-using UnityEditor;
 using UnityEngine;
 
 public class Tweener : MonoBehaviour
 {
     private static Tweener instance;
     private void Awake() => instance = this;
-    public static void Tween(
+    public static Coroutine Tween(
         object invoker,
         float start,
         float end,
@@ -17,7 +16,7 @@ public class Tweener : MonoBehaviour
         Action onExit = null,
         float initialDelay = 0f)
     {
-        instance.StartCoroutine(TweenCoroutine(invoker, start, end, duration, style, onUpdate, onExit, initialDelay));
+        return instance.StartCoroutine(TweenCoroutine(invoker, start, end, duration, style, onUpdate, onExit, initialDelay));
     }
     public static IEnumerator TweenCoroutine(
         object invoker,
@@ -106,6 +105,64 @@ public class Tweener : MonoBehaviour
         onExit?.Invoke();
     }
 
+    public static Coroutine TweenAtRate(
+        object invoker,
+        float current,
+        float start,
+        float end,
+        float timeToFullFill,
+        TweenStyle style,
+        Action<float> onUpdate,
+        Action onExit = null,
+        float initialDelay = 0f)
+    {
+        return instance.StartCoroutine(TweenCoroutine(invoker, current, end,
+            timeToFullFill * Mathf.InverseLerp(end, start, current),
+            style, onUpdate, onExit, initialDelay));
+    }
+
+    public static Coroutine TweenCanvasGroupAtRate(
+        CanvasGroup canvasGroup,
+        float timeToFullFill,
+        TweenStyle style,
+        bool increasing,
+        float? targetAlpha = null,
+        Action onExit = null)
+    {
+        float target;
+        if (targetAlpha.HasValue)
+        {
+            target = targetAlpha.Value;
+        }
+        else
+        {
+            target = increasing ? 1f : 0f;
+        }
+
+        return TweenAtRate(
+            canvasGroup,
+            canvasGroup.alpha,
+            increasing ? 0f : 1f,
+            target,
+            timeToFullFill,
+            style,
+            value => canvasGroup.alpha = value,
+            onExit
+        );
+    }
+
+    public static void RequestEndCoroutine(Coroutine coroutine)
+    {
+        if (coroutine == null) return;
+        instance.StopCoroutine(coroutine);
+    }
+
+    public static float GetValue(float start, float end, float t, TweenStyle style)
+    {
+        var func = GetFunc(style);
+        return func(start, end, t);
+    }
+
     public static float Linear(float start, float end, float t)
         => Mathf.Lerp(start, end, t);
 
@@ -127,6 +184,20 @@ public class Tweener : MonoBehaviour
             TweenStyle.sinusPingPong => SinusPingPong,
             _ => Linear
         };
+    }
+
+    public static void TweenPosition(GameObject invoker,
+        Vector2 start,
+        Vector2 end,
+        float duration,
+        TweenStyle style,
+        Action onExit = null,
+        float initialDelay = 0f)
+    {
+        Tween(invoker, start, end, duration, style,
+            value => invoker.transform.position = new Vector2(value.x, value.y),
+            onExit,
+            initialDelay);
     }
 }
 

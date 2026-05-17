@@ -33,8 +33,11 @@ public class SimpleMatchmaking : MonoBehaviour
     private QueryResponse _lobbies;
     private const string JoinCodeKey = "j";
     private string _playerId;
-    
+#if UNITY_EDITOR
     private async void Awake()
+#else
+    private void Awake()
+#endif
     {
         if (DataStorage.Instance.GetGameMode() != GameMode.MultiPlayer)
         {

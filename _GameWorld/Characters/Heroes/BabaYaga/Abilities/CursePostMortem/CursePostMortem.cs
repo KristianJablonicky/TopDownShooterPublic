@@ -3,6 +3,8 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "CursePostMortem", menuName = "Abilities/PostMortem/Curse")]
 public class CursePostMortem : AbilityPostMortem
 {
+    [field: SerializeField] public float Range { get; private set; } = 5f;
+    [field: SerializeField] public GameObject curseVisuals; 
     public override AbilityHotKeys KeyCode { get; protected set; } = AbilityHotKeys.Utility;
 
     protected override void OnKeyDownSecure(Vector2 position) { }
@@ -11,13 +13,13 @@ public class CursePostMortem : AbilityPostMortem
     {
         TryInvokeRPC<BabaYagaRPCs>(rpcs =>
         {
-            rpcs.RequestCurseRPC(owner.PlayerId);
+            rpcs.RequestCursePostMortemRPC(teamMate.PlayerId);
             OnCast();
         });
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
-        return $"";
+        return $"Curse range: {Range}";
     }
 }

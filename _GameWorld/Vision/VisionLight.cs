@@ -4,6 +4,7 @@ using UnityEngine.Rendering.Universal;
 public class VisionLight : MonoBehaviour
 {
     [SerializeField] private Light2D frontalCone, aroundCharacter;
+
     public void ChangeLightState(bool newState)
     {
         frontalCone.enabled = newState;
@@ -27,12 +28,17 @@ public class VisionLight : MonoBehaviour
     private void SetLightRange(Light2D light, float range)
     {
         light.pointLightOuterRadius = range;
-        light.pointLightInnerRadius = range - 1f;
+        light.pointLightInnerRadius = range * 0.75f;
     }
 
     private void SetLightFOV(Light2D light, float fov)
     {
         light.pointLightOuterAngle = fov;
         light.pointLightInnerAngle = fov;
+    }
+
+    public void ChangeDistantLightState(bool enabled)
+    {
+        frontalCone.enabled = enabled;
     }
 }

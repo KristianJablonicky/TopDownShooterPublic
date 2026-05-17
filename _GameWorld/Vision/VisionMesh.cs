@@ -6,9 +6,11 @@ using UnityEngine;
 /// </summary>
 public class VisionMesh : MonoBehaviour
 {
+    [SerializeField] protected VisionRange visionRangeReference;
+
     [SerializeField] protected int rayCount = 200;
     [Header("Vision settings")]
-    [SerializeField] protected float visionRange = 10f;
+    [SerializeField] protected float visionRange = 8;
     [SerializeField] protected float guaranteedVisionRangeMultiplier = 0.75f;
     [SerializeField] protected float frontalFov = 45f;
     [SerializeField] private bool setUpOnSpawn = false;
@@ -23,8 +25,18 @@ public class VisionMesh : MonoBehaviour
     private int[] triangles;
 
     private float angleIncrease;
-
     private float angle;
+    public float GetVisionRange()
+    {
+        if (visionRangeReference != null)
+        {
+            return visionRangeReference.ModifiableValue.CurrentValue;
+        }
+        else
+        {
+            return visionRange;
+        }
+    }
 
     private void Start()
     {
@@ -59,6 +71,9 @@ public class VisionMesh : MonoBehaviour
         var vertexIndex = 1;
         var trianglesIndex = 0;
 
+        var visionRangeFrontalCone = GetVisionRange();
+        var visionRangeOutsideCone = visionRangeFrontalCone * guaranteedVisionRangeMultiplier;
+
         for (int i = 0; i <= rayCount; i++)
         {
             // How far from the center facing angle this ray is
@@ -67,14 +82,22 @@ public class VisionMesh : MonoBehaviour
                 angleDiff = Mathf.DeltaAngle(facingAngle.Value, angle);
             }
 
-            // Decide vision length depending on FOV
-            var range = Mathf.Abs(angleDiff) <= frontalFov * 0.5f
-                ? visionRange
-                : visionRange * guaranteedVisionRangeMultiplier;
-
+            float range;
+            if (frontalFov > 0)
+            {
+                // Decide vision length depending on FOV
+                range = Mathf.Abs(angleDiff) <= frontalFov * 0.5f
+                    ? visionRangeFrontalCone
+                    : visionRangeOutsideCone;
+            }
+            else
+            {
+                range = visionRangeOutsideCone;
+            }
+            
             var dir = GetVectorFromAngle(angle);
-            var raycastHit = Physics2D.Raycast(origin, dir, range, onlyBlockingLayer);
-
+            var raycastHit = GetRaycastHit(origin, dir, range);
+            
             Vector3 vertex;
             if (raycastHit.collider == null)
             {
@@ -105,6 +128,8 @@ public class VisionMesh : MonoBehaviour
         mesh.bounds = new(origin, Vector3.one * 1000f);
     }
 
+    public RaycastHit2D GetRaycastHit(Vector2 origin, Vector2 direction, float range)
+        => Physics2D.Raycast(origin, direction, range, onlyBlockingLayer);
     private Vector3 GetVectorFromAngle(float angle)
     {
         var angleRad = angle * Mathf.Deg2Rad;

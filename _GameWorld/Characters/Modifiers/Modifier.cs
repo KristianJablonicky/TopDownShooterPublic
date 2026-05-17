@@ -14,7 +14,7 @@ public class Modifier
 
     public Modifier(CharacterMediator owner, IModifierStrategy strategy, float duration, int stacks, Sprite icon)
     {
-        var alreadyExists = owner.Modifiers.ModifierExistsOfType(strategy.GetType(), stacks, duration);
+        var alreadyExists = owner.Modifiers.CheckModifierAndAdjustIfAlreadyOwned(strategy.GetType(), stacks, duration);
 
         if (alreadyExists) return;
 
@@ -32,6 +32,7 @@ public class Modifier
         if (strategy.ExpireOnRoundEnd())
         {
             GameStateManager.Instance.RoundEnded += Expire;
+            owner.Died += (_) => Expire();
         }
 
         if (strategy.RealTimeDuration())
@@ -65,11 +66,13 @@ public class Modifier
 
     private void OnUpdate(float dt) => Duration.Adjust(-dt);
 
-    public Type ModifierType => strategy.GetType();
+    public Type ModifierSystemType => strategy.GetType();
     public string Description => strategy.GetDescription();
     public void StartTimer()
     {
         Tweener.Tween(this, Duration, 0f, Duration, TweenStyle.linear,
             value => Duration.Set(value));
     }
+
+    public ModifierType Type => strategy.ModifierType;
 }

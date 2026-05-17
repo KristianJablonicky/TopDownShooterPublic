@@ -9,8 +9,8 @@ public class ObjectiveVision : VisionMesh
     protected override void VirtualStart()
     {
         UpdateMesh(objectiveTransform.position, null);
-        light2D.pointLightInnerRadius = visionRange - 1;
-        light2D.pointLightOuterRadius = visionRange;
+        light2D.pointLightInnerRadius = GetVisionRange() - 1;
+        light2D.pointLightOuterRadius = GetVisionRange();
         light2D.transform.SetParent(objectiveTransform);
     }
 

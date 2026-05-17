@@ -21,7 +21,7 @@ public class ThrowBomb : UtilityAbility
     }
     protected override void OnKeyDown(Vector2 position) { }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
         return $"Explosion radius: {bomb.ExplosionRadius}\nExplosion damage: {bomb.DamageRangeString}";
     }

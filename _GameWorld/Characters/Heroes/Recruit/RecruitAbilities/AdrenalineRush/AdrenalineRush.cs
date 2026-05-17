@@ -24,10 +24,12 @@ public class AdrenalineRush : PassiveAbility
         {
             return;
         }
-        owner.MovementController.AddOrChangeMultiplier(this, newBonus);
+        owner.MovementController.MovementModifiers.AddOrChangeMultiplier(this, newBonus);
     }
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
         return $"Max bonus speed: {maxMoveBonus}%";
     }
+
+    protected override void SafeSetUpWithRPCsReady() { }
 }

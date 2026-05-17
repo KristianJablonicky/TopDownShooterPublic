@@ -10,12 +10,12 @@ public class SmokePostMortem : AbilityPostMortem
 
     protected override void OnKeyUpSecure(Vector2 position)
     {
-        var destination = GetDestination(position, smokePrefab.Range, true);
+        var destination = GetDestination(position, smokePrefab.Range, true, teamMate);
         if (!destination.HasValue) return;
 
         OnCast();
         TryInvokeRPC<RecruitAbilityRPCs>(rpcs => rpcs.RequestSmokeRPC(destination.Value));
     }
 
-    protected override string _GetAbilitySpecificStats() => "";
+    public override string _GetSpecificAttributes() => "";
 }

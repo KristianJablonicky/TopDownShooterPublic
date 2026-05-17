@@ -29,24 +29,35 @@ public class Crosshair : MonoBehaviour
 
     private Gun playerGun;
     private CharacterMediator mediator;
+    private RectTransform parentRect;
+
     private void Awake()
     {
         Cursor.visible = false;
         PlayerNetworkInput.PlayerSpawned += OnOwnerSpawn;
         enabled = false;
+        parentRect = transform.parent.GetComponent<RectTransform>();
     }
 
     private void Start()
     {
-        EscapeMenuManager.Instance.Toggled += OnEscapeMenuToggled;
+        WindowStackManager.Instance.WindowsVisibilityChanged += OnEscapeMenuToggled;
 
-        var relative = DataStorage.Instance.GetInt(DataKeyInt.SettingsRelativeCrosshair) == 1;
-        getLineOffset = relative ? GetLineOffsetRelative : GetLineOffsetWorld;
+        OnCrosshairTypeChange(
+            DataStorage.Instance.SubscribeAndGetCurrentValue(
+                SettingsKeys.ClassicCrosshair, OnCrosshairTypeChange, Constants.Defaults.classicCrosshair)
+        );
+    }
+
+    private void OnCrosshairTypeChange(int newClassicState)
+    {
+        getLineOffset = newClassicState == 1 ? GetClassicLineOffset : GetAccurateLineOffset;
     }
 
     private void OnDestroy()
     {
         Cursor.visible = true;
+        DataStorage.Instance.Unsubscribe(SettingsKeys.ClassicCrosshair, OnCrosshairTypeChange);
     }
 
     private void OnOwnerSpawn(CharacterMediator mediator)
@@ -75,7 +86,7 @@ public class Crosshair : MonoBehaviour
     void Update()
     {
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            cursorRoot.parent as RectTransform,
+            parentRect,
             Input.mousePosition,
             playerCamera,
             out Vector2 mousePos
@@ -111,9 +122,9 @@ public class Crosshair : MonoBehaviour
         headshotDot.alpha = headShotValue > 0f ? Mathf.Max(playerGun.CanHeadShot(), 0.5f) : 0f;
     }
 
-    private float GetLineOffsetRelative() => playerGun.GetRecoil() * maxLineOffsetWhenRelative;
+    private float GetClassicLineOffset() => playerGun.GetRecoil() * maxLineOffsetWhenRelative;
 
-    private float GetLineOffsetWorld()
+    private float GetAccurateLineOffset()
     {
         var worldCenter = playerCamera.ScreenToWorldPoint(
             new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10f)
@@ -126,7 +137,7 @@ public class Crosshair : MonoBehaviour
             enabled = false;
             return 0f;
         }
-        var distance = Vector2.Distance(mediator.GetPosition(), mediator.InputHandler.CursorPosition);
+        var distance = Vector2.Distance(mediator.GetPosition(), PlayerInputHandler.CursorPosition);
 
         var spreadRadius = Mathf.Tan(angleRad / 2f) * distance;
 

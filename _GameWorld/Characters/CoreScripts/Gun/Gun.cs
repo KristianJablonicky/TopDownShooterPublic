@@ -70,7 +70,7 @@ public class Gun : MonoBehaviour, IResettable
     }
 
     private void DealDamage(int damage, DamageTag tag, HealthComponent targetHealthComponent)
-        => mediator.NetworkInput.DealDamage(damage, tag, targetHealthComponent.Mediator, mediator);
+        => mediator.NetworkInput.DealDamage(damage, tag, targetHealthComponent.Mediator, mediator, false);
 
     // ran locally
     public bool CanHeadShot(bool pressedDown, AimDirection direction)
@@ -95,6 +95,7 @@ public class Gun : MonoBehaviour, IResettable
 
     public void ShowShotVisuals()
     {
+        if (!mediator.IsAlive) return;
         gunTipVisuals.Shoot();
         mediator.AnimationController.PlayAnimation(Animations.Shoot);
     }

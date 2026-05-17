@@ -26,17 +26,17 @@ public class ShadowWave : UtilityAbility
         
 
         channelingManager.StartChanneling(castTime,
-            () => shadowWave.Cast(destination.Value, (DraculaRPCs)characterRPCs)
+            () => shadowWave.Cast(owner, destination.Value, (DraculaRPCs)characterRPCs)
         );
-        channelingManager.AlsoPlayAnAnimation(Animations.AbilityUtility, animationDurationMultiplier);
+        AlsoPlayAnimation(durationMultiplier: animationDurationMultiplier);
 
-        FadeOutThenGetDestroyed preWaveGO = Instantiate(shadowWave.PreWaveIndicator, destination.Value, Quaternion.identity);
+        var preWaveGO = Instantiate(shadowWave.PreWaveIndicator, destination.Value, Quaternion.identity);
         preWaveGO.duration = 0f;
         preWaveGO.fadeOutTime = castTime;
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
-        return $"Range: {shadowWave.Range}\nArea of effect: {shadowWave.Area}\nMax velocity: {shadowWave.ForceMax}\nCast time: {castTime}";
+        return $"Range: {shadowWave.Range}\nArea of effect: {shadowWave.Area}\nMax velocity: {shadowWave.ForceMax}\nCast time: {castTime}\nSpook duration: {shadowWave.SpookDuration}s";
     }
 }

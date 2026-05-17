@@ -6,6 +6,19 @@ public class VolumeAdjust : MonoBehaviour
 
     private void Awake()
     {
-        audioSource.volume = DataStorage.GetVolume() * Constants.nonSpatialVolumeMultiplier;
+        OnVolumeChanged(
+            DataStorage.Instance.SubscribeAndGetCurrentValue(
+                SettingsKeys.MasterVolume, OnVolumeChanged, Constants.Defaults.volume)
+        );
+    }
+
+    private void OnDestroy()
+    {
+        DataStorage.Instance.Unsubscribe(SettingsKeys.MasterVolume, OnVolumeChanged);
+    }
+
+    private void OnVolumeChanged(int newVolume)
+    {
+        audioSource.volume = DataStorage.VolumeToFloat(newVolume);
     }
 }

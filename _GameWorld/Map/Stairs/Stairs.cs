@@ -18,20 +18,24 @@ public class Stairs : MonoBehaviour
         spriteRenderer.sprite = stairSprites[(int)stairsLeadToFloor];
         if (stairsLeadToFloor == Floor.Basement)
         {
+            /*
             boxCollider.offset = new Vector2(0f, -0.7f);
             boxCollider.size = new Vector2(0.9f, 0.5f);
+            */
             particleSpawner.SetActive(true);
         }
         else
         {
+            /*
             boxCollider.offset = new Vector2(0f, 0.7f);
             boxCollider.size = new Vector2(0.9f, 0.5f);
+            */
             lightSource.SetActive(true);
         }
 
         if (stairsLeadToFloor == Floor.Basement)
         {
-            walkingRestrictions.transform.Rotate(0f, 0f, 180f);
+            //walkingRestrictions.transform.Rotate(0f, 0f, 180f);
             obstacleComponent.gameObject.layer = 0;
             Destroy(obstacleComponent);
         }
@@ -43,7 +47,7 @@ public class Stairs : MonoBehaviour
         if (collision.gameObject.TryGetComponent(out HealthComponent healthComponent))
         {
             var mediator = healthComponent.Mediator;
-            if (!mediator.IsLocalPlayer) return;
+            if (!mediator.IsOwner) return;
 
             var movementController = healthComponent.Mediator.MovementController;
             movementController.SetPosition(

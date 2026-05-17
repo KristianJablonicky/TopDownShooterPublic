@@ -8,9 +8,12 @@ public class FulfilWish : MovementAbility
     [field: SerializeField][Range(0f, 1f)] public float MoveSpeedMultiplier { get; private set; } = 0.4f;
     [field: SerializeField] public float Duration { get; private set; } = 2f;
     [field: SerializeField] public GameObject WishVisuals { get; private set; }
+    [field: SerializeField] public OneTimeAnimation FingerGunVisuals { get; private set; }
     protected override void OnKeyDown(Vector2 position) { }
 
     private DjinnRPCs rpcs;
+    private const float animationDurationBonus = 0.25f;
+
     protected override void SetUpRPCsReady()
     {
         TryInvokeRPC<DjinnRPCs>(rpcs => this.rpcs = rpcs);
@@ -22,19 +25,21 @@ public class FulfilWish : MovementAbility
         if (channelingManager.RequestInterrupt())
         {
             channelingManager.StartChanneling(channelDuration, CastEffect);
+            AlsoPlayAnimation(durationBonus: animationDurationBonus);
+            rpcs.FingerGunRpc(owner.PlayerId);
+            OnCast();
         }
     }
 
     private void CastEffect()
     {
-        OnCast();
         rpcs.remainingWishes--;
         rpcs.RequestWishRPC(owner.PlayerId);
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
-        return $"Heal amount: {HealAmount}\nMovement speed bonus: {Mathf.RoundToInt(MoveSpeedMultiplier * 100f)}%\nDuration: {Duration}s\nChannel time: {channelDuration}";
+        return $"Heal amount: {HealAmount}\nMovement speed bonus: {Mathf.RoundToInt(MoveSpeedMultiplier * 100f)}%\nDuration: {Duration}s\nChannel time: {channelDuration}s";
     }
 
     public class WishModifier : IModifierStrategy
@@ -45,18 +50,20 @@ public class FulfilWish : MovementAbility
             this.movementSpeedMultiplier = movementSpeedMultiplier;
         }
 
+        public ModifierType ModifierType => ModifierType.Buff;
+
         public void Apply(CharacterMediator owner, Modifier modifier)
         {
-            owner.MovementController.AddOrChangeMultiplier(this, movementSpeedMultiplier);
+            owner.MovementController.MovementModifiers.AddOrChangeMultiplier(this, movementSpeedMultiplier);
             modifier.Stacks.OnValueSet += stacks =>
             {
-                owner.MovementController.AddOrChangeMultiplier(this, stacks * movementSpeedMultiplier);
+                owner.MovementController.MovementModifiers.AddOrChangeMultiplier(this, stacks * movementSpeedMultiplier);
             };
         }
 
         public void Expire(CharacterMediator owner)
         {
-            owner.MovementController.RemoveMultiplier(this);
+            owner.MovementController.MovementModifiers.RemoveMultiplier(this);
         }
 
         public bool ExpireOnRoundEnd() => true;
@@ -65,4 +72,6 @@ public class FulfilWish : MovementAbility
 
         public bool RealTimeDuration() => true;
     }
+
+    public float ChannelingDuration => channelDuration + animationDurationBonus;
 }

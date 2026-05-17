@@ -6,22 +6,22 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "BloodDrinker", menuName = "Abilities/Passive/BloodDrinker")]
 public class BloodDrinker : PassiveAbility
 {
-    [SerializeField] private int healthThreshold = 30;
+    [SerializeField, Range(0f, 1f)] private double healthThresholdPercentage = 0.4d;
+    [SerializeField, Range(0f, 1f)] private double healthThresholdPercentageSpooked = 0.6d;
     [SerializeField] private int healOnKill = 50;
     [SerializeField] private float beforeKillDelay = 0.5f;
 
     [SerializeField] private OneTimeAnimation drainAnimationPrefab;
-    private Dictionary<CharacterMediator, bool> mediatorDrained;
+    private Dictionary<CharacterMediator, bool> mediatorsDrained;
     protected override void SetUp() { }
-    protected override void SetUpRPCsReady()
+    protected override void SafeSetUpWithRPCsReady()
     {
-        if (!owner.IsLocalPlayer) return;
         owner.NetworkInput.OnDamageDealtToMediator += OnDamageDealt;
         owner.ScoredAKill += OnKill;
 
         var manager = CharacterManager.Instance;
 
-        mediatorDrained = new();
+        mediatorsDrained = new();
         foreach (var player in manager.Mediators.Values)
         {
             AddToDictionary(player);
@@ -32,27 +32,41 @@ public class BloodDrinker : PassiveAbility
     private void AddToDictionary(CharacterMediator character)
     {
         if (character == owner) return;
-        mediatorDrained.Add(character, false);
+        mediatorsDrained.Add(character, false);
     }
 
     private void OnDamageDealt(int damage, DamageTag tag, CharacterMediator hitMediator)
     {
         if (tag != DamageTag.Shot) return; // just in case
 
-        // this player has already been drained or is an NPC
-        if (mediatorDrained[hitMediator]
-            && !hitMediator.IsNPC) return;
-
-        var hc = hitMediator.HealthComponent;
-        if (hc.CurrentHealth <= healthThreshold && hc.CanTakeDamage)
+        if (!mediatorsDrained.ContainsKey(hitMediator))
         {
-            mediatorDrained[hitMediator] = true;
+            Debug.LogWarning($"BloodDrinker: {hitMediator} not in dict");
+            return;
+        }
+
+        // this player has already been drained or is an NPC
+        if (mediatorsDrained[hitMediator]) return;
+        var hc = hitMediator.HealthComponent;
+        var threshold = healthThresholdPercentage;
+        if (hitMediator.Modifiers.ModifierExistsOfType(
+            typeof(ShadowWaveSpook)))
+        {
+            threshold = healthThresholdPercentageSpooked;
+        }
+
+        if (hc.CanTakeDamage
+        &&  hc.CurrentHealth <= threshold * hc.MaxHealth)
+        {
+            mediatorsDrained[hitMediator] = true;
             ExecuteAfterDelay(hitMediator);
+            owner.NetworkInput.RequestHealRpc(healOnKill, true);
         }
     }
 
     private void OnKill(CharacterMediator killedMediator, CharacterMediator killer)
     {
+        if (mediatorsDrained[killedMediator]) return; // avoid getting the heal 2 times if the player was drained
         owner.NetworkInput.RequestHealRpc(healOnKill, true);
     }
 
@@ -72,15 +86,15 @@ public class BloodDrinker : PassiveAbility
 
     protected override void AbstractReset()
     {
-        if (mediatorDrained is null) return;
-        foreach (var key in mediatorDrained.Keys.ToList())
+        if (mediatorsDrained is null) return;
+        foreach (var key in mediatorsDrained.Keys.ToList())
         {
-            mediatorDrained[key] = false;
+            mediatorsDrained[key] = false;
         }
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
-        return $"Health threshold: {healthThreshold}\nHeal on kill: {healOnKill}\nDelay: {beforeKillDelay}";
+        return $"Health threshold: {healthThresholdPercentage * 100d}%\nHealth threshold against spooked heroes: {healthThresholdPercentageSpooked * 100d}%\nHeal on kill: {healOnKill}\nDelay: {beforeKillDelay}";
     }
 }

@@ -1,11 +1,10 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 
 [CreateAssetMenu(fileName = "HeroToolkit", menuName = "Abilities/Toolkit")]
 public class CharacterToolkit : ScriptableObject
 {
     [field: SerializeField] public HeroDatabase DatabaseEntry { get; private set; }
-    [field: SerializeField] public string HeroName {  get; private set; }
+    [field: SerializeField] public string HeroName { get; private set; }
     [field: SerializeField, TextArea] public string HeroDescription { get; private set; }
 
     [SerializeField] private MovementAbility movementAbility;
@@ -15,8 +14,10 @@ public class CharacterToolkit : ScriptableObject
     [field: SerializeField] public GunConfig GunConfig { get; private set; }
 
     [Header("Visuals")]
+    [field: SerializeField] public CharacterVisualToolkit CharacterVisuals { get; private set; }
     [field: SerializeField] public Color PrimaryColor { get; private set; }
-    [field: SerializeField] public Sprite SplashArt { get; private set; }
+    [field: SerializeField] public Color SecondaryColor { get; private set; }
+    //[field: SerializeField] public Sprite SplashArt { get; private set; }
 
     public (MovementAbility movementAbility,
         UtilityAbility utilityAbility,
@@ -48,15 +49,7 @@ public class CharacterToolkit : ScriptableObject
 
     public string GetGunDescription()
     {
-        return $"<b>{GunConfig.GunName}</b>\n{GunConfig.damage} damage\n{GunConfig.headshotDamage} HS damage\n{GunConfig.capacity} capacity\n{GunConfig.RPM} RPM\n{GunConfig.reloadDuration}s reload time\nRange: {GunConfig.bulletRange}";
+        return $"{GunConfig.damage} damage\n{GunConfig.headshotDamage} HS damage\n{GunConfig.capacity} capacity\n{GunConfig.RPM} RPM\n{GunConfig.reloadDuration}s reload time\nRange: {GunConfig.bulletRange}";
     }
 
-}
-
-public enum HeroDatabase
-{
-    Recruit = 0,
-    BabaYaga = 1,
-    Dracula = 2,
-    Djinn = 3
 }

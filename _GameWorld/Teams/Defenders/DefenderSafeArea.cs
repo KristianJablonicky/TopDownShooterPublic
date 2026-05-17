@@ -10,7 +10,7 @@ public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
 
     private GameStateManager gameStateManager;
 
-    private CharacterMediator localPlayer;
+    private CharacterMediator localMediator;
     private float timeSpentOutside = 0f;
 
     private Coroutine checkCoroutine;
@@ -20,7 +20,13 @@ public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
         gameStateManager.NewRoundStarted += OnNewRound;
         gameStateManager.RoundEnded += OnRoundEnd;
 
-        PlayerNetworkInput.PlayerSpawned += (player) => localPlayer = player;
+        PlayerNetworkInput.PlayerSpawned += OnMediatorSpawn;
+    }
+
+    private void OnMediatorSpawn(CharacterMediator mediator)
+    {
+        localMediator = mediator;
+        localMediator.Died += (_) => screenOverlay.alpha = 0f;
     }
 
     private void OnRoundEnd()
@@ -36,7 +42,7 @@ public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
 
     private void OnNewRound()
     {
-        if (localPlayer.Role == Role.Defender)
+        if (localMediator.Role == Role.Defender)
         {
             checkCoroutine = StartCoroutine(CheckDefender());
         }
@@ -52,9 +58,9 @@ public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
         {
             yield return wait;
 
-            if (!localPlayer.IsAlive || localPlayer == null) break;
+            if (!localMediator.IsAlive || localMediator == null) break;
 
-            var position = localPlayer.GetPosition();
+            var position = localMediator.GetPosition();
 
             bool isInside = false;
             foreach(var box in boxColliders)
@@ -81,7 +87,7 @@ public class BoundsCheck : SingletonMonoBehaviour<BoundsCheck>
 
             if (timeSpentOutside >= maxTimeOutside)
             {
-                localPlayer.HealthComponent.TakeLethalDamage();
+                localMediator.HealthComponent.TakeLethalDamage();
                 break;
             }
         }

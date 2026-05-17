@@ -4,7 +4,7 @@ public sealed class ObjectiveVisionModifier : ObjectiveModifier
 
     protected override void AdjustEffect(int stackCount)
     {
-        owner.PlayerVision.AdjustBaseVisionRange(stackCount * visionPerStack);
+        owner.VisionRange.ModifiableValue.AddOrChangeMultiplier(this, stackCount * visionPerStack);
     }
 
     protected override string GetDescriptionInternal() => "Increase vision range";

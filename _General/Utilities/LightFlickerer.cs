@@ -8,7 +8,6 @@ public class LightFlickerer : SinusUpdater
     [Header("Flicker Settings")]
     [SerializeField] private float minIntensityMultiplier = 0.8f;
     [SerializeField] private float maxIntensityMultiplier = 1.2f;
-    [SerializeField] private float flickerDuration = 1f;
     [SerializeField] private bool flickerRadius = false;
     private float currentLerpCache;
     private float baseIntensity, baseOuterRadius, baseInnerRadius;

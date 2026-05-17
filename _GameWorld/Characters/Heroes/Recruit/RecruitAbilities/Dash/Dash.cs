@@ -4,6 +4,7 @@ using UnityEngine;
 public class Dash : MovementAbility
 {
     [SerializeField] private float appliedVelocity = 25f;
+    [SerializeField] private float animationDuration = 0.5f;
 
     protected override void OnKeyDown(Vector2 position) { }
 
@@ -13,11 +14,11 @@ public class Dash : MovementAbility
         if (movement.GetMoveVelocityNormalized.magnitude == 0f) return;
 
         owner.MovementController.ApplyForceInWalkingDirection(appliedVelocity);
-
+        PlayAnimation(animationDuration);
         OnCast();
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
         return $"Velocity: {appliedVelocity}";
     }

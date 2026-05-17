@@ -1,42 +1,42 @@
 using UnityEngine;
 
-public class AudioSourceMediator : MonoBehaviour
+public class AudioSourceMediator : MonoBehaviour, IResettable
 {
     [SerializeField, Range(0f, 1f)] private float differentFloorVolumeRatio = 0.5f;
     [SerializeField] private AudioSource audioSource, audioSourceMuffled;
-
-    public void Init(float baseVolume)
+    [SerializeField, Tooltip("Don't mind this!")] private string clipName;
+    public float DefaultVolume { get; private set; }
+    public void SetVolume(float baseVolume, bool isDefault)
     {
         audioSource.volume = baseVolume;
         audioSourceMuffled.volume = baseVolume * differentFloorVolumeRatio;
+        if (isDefault) DefaultVolume = baseVolume;
     }
 
-
-    public void PlaySound(AudioClip clip, bool randomizePitch)
+    public void PlaySound(AudioClip clip, PitchAdjustment pitchAdjustment)
     {
-        PlaySound(clip, audioSource, randomizePitch); 
+        PlaySound(clip, audioSource, pitchAdjustment); 
     }
 
-    public void PlaySound(AudioClip clip, bool soundOnThisFloor, Vector2 destinationPosition, bool randomizePitch)
+    public void PlaySound(AudioClip clip, bool soundOnThisFloor, Vector2 destinationPosition, PitchAdjustment pitchAdjustment)
     {
         transform.position = destinationPosition;
 
         var source = soundOnThisFloor ? audioSource : audioSourceMuffled;
-        PlaySound(clip, source, randomizePitch);
+        PlaySound(clip, source, pitchAdjustment);
     }
 
-    private void PlaySound(AudioClip clip, AudioSource source, bool randomizePitch)
+    private void PlaySound(AudioClip clip, AudioSource source, PitchAdjustment pitchAdjustment)
     {
-        source.pitch = GetPitch(randomizePitch);
+        clipName = clip.name;
+        source.pitch = pitchAdjustment.GetPitch();
         source.PlayOneShot(clip);
     }
 
-    private float GetPitch(bool randomizePitch)
+    public void Stop()
     {
-        if (randomizePitch)
-        {
-            return Random.Range(0.95f, 1.05f);
-        }
-        return 1f;
+        audioSource.Stop();
+        audioSourceMuffled.Stop();
     }
+    public void Reset() => SetVolume(DefaultVolume, false);
 }

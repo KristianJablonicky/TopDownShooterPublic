@@ -1,45 +1,43 @@
-using System;
-using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class EscapeMenuManager : SingletonMonoBehaviour<EscapeMenuManager>
 {
-    [SerializeField] private GameObject escapeMenu;
-    [SerializeField] private Button startTrainingButton, exitToMainMenuButton;
+    [SerializeField] private PopUpWindowBase popUpWindowBase;
+    [SerializeField] private Button settingsButton, startTrainingButton, exitToMainMenuButton;
+    [SerializeField] private PopUpWindowBase settingsPopUp;
 
-    public static bool MenuOpen => Instance.visible;
-    public event Action<bool> Toggled;
-
-    private bool visible = false;
+    public PopUpWindowBase WindowBase => popUpWindowBase;
     private void Start()
     {
         PlayerNetworkInput.PlayerSpawned += OnPlayerSpawn;
 
-        if (DataStorage.Instance.GetGameMode() == GameMode.SinglePlayer)
+        settingsButton.onClick.AddListener(() => {
+            settingsPopUp.GetActivated();
+        });
+
+        if (DataStorage.Instance.GetGameMode() == GameMode.Training)
         {
             startTrainingButton.gameObject.SetActive(true);
             startTrainingButton.onClick.AddListener( () =>
                 {
                     if (CharacterManager.Instance.LocalPlayerMediator.Gun.ChannelingManager.Channeling) return;
                     SinglePlayerManager.Instance.StartTraining();
-                    ToggleMenu();
+                    WindowStackManager.Instance.CloseWindow();
                 }
             );
         }
 
-        exitToMainMenuButton.onClick.AddListener(() => NetworkManager.Singleton.Shutdown());
+        exitToMainMenuButton.onClick.AddListener(SceneManager.Disconnect);
     }
 
     private void OnPlayerSpawn(CharacterMediator player)
     {
-        player.InputHandler.EscapePressed += ToggleMenu;
+        player.InputHandler.EscapePressed += ShowMenu;
     }
-
-    public void ToggleMenu()
+    private void ShowMenu()
     {
-        visible = !visible;
-        escapeMenu.SetActive(visible);
-        Toggled?.Invoke(visible);
+        if (WindowStackManager.Instance.WindowsOpen) return;
+        popUpWindowBase.GetActivated();
     }
 }

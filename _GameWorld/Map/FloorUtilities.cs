@@ -32,7 +32,14 @@ public static class FloorUtilities
         floor = GetDifferentFloor(floor);
         return GetPositionY(position, floor);
     }
-
+    public static Vector2 TransformPositionIfNeeded(Vector2 position, Floor floor)
+    {
+        if (GetCurrentFloor(position) != floor)
+        {
+            return GetPositionY(position, floor);
+        }
+        return position;
+    }
     public static float? GetYOffset(AimDirection direction, Floor currentFloor)
     {
         if (currentFloor == Floor.Basement && direction == AimDirection.Down
@@ -58,4 +65,52 @@ public static class FloorUtilities
 
     public static Floor GetDifferentFloor(Floor floor)
         => floor == Floor.Basement ? Floor.Outside : Floor.Basement;
+    public static bool IsOnTheSameFloor(Transform position1, Transform position2)
+        => IsOnTheSameFloor(position1.position, position2.position);
+    public static bool IsOnTheSameFloor(Vector2 position1, Vector2 position2)
+        => position1.y > yThreshold == position2.y > yThreshold;
+
+    public static Floor GetTargetFloor(CharacterMediator mediator, AimDirection aimDirection)
+    {
+        var current = (int)GetCurrentFloor(mediator);
+
+        int delta = aimDirection switch
+        {
+            AimDirection.Up => +1,
+            AimDirection.Down => -1,
+            _ => 0
+        };
+
+        return (Floor)Mathf.Clamp01(current + delta);
+    }
+
+    public static AimDirection GetOtherFloorDirection(CharacterMediator mediator)
+        => GetOtherFloorDirection(GetCurrentFloor(mediator));
+
+    public static AimDirection GetOtherFloorDirection(Floor currentFloor)
+    {
+        return currentFloor switch
+        {
+            Floor.Basement => AimDirection.Up,
+            Floor.Outside => AimDirection.Down,
+            _ => throw new System.NotImplementedException()
+        };
+    }
+
+    public static Floor GetTheOtherFloor(Floor floor)
+    => floor switch
+    {
+        Floor.Outside => Floor.Basement,
+        Floor.Basement => Floor.Outside,
+        _ => throw new System.NotImplementedException(),
+    };
+
+    public static Vector2 TranslateToTheOtherFloorIfNeeded(Vector2 sourceToBeTransformed, Vector2 destination)
+    {
+        if (IsOnTheSameFloor(sourceToBeTransformed, destination))
+        {
+            return sourceToBeTransformed;
+        }
+        return GetPositionOnTheOtherFloor(sourceToBeTransformed);
+    }
 }

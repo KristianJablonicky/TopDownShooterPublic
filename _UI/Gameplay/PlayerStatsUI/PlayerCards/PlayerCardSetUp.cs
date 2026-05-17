@@ -7,15 +7,12 @@ public class PlayerCardSetUp : MonoBehaviour
     [SerializeField] private CardsBackgroundFadeManager fadeManager;
 
     [Header("Fade In")]
-    [SerializeField] private CanvasGroup canvasGroup;
+    [SerializeField] private CanvasGroup[] cardsCanvasGroups;
     [SerializeField] private float fadeInDuration = 0.5f;
     private void Start()
     {
         PlayerNetworkInput.PlayerSpawned += OnPlayerSpawn;
         GameStateManager.Instance.GameStarted += OnGameStarted;
-        canvasGroup.alpha = 0f;
-        gameObject.SetActive(false);
-        canvasGroup.gameObject.SetActive(false);
     }
     private void OnPlayerSpawn(CharacterMediator mediator)
     {
@@ -25,7 +22,7 @@ public class PlayerCardSetUp : MonoBehaviour
     }
     private void OnGameStarted()
     {
-        canvasGroup.gameObject.SetActive(true);
+        fadeManager.EnableCardsAndSwitchFade(fadeInDuration);
 
         var localPlayer = CharacterManager.Instance.LocalPlayer;
         teamMateCard.Init(localPlayer.GetTeamMate().Mediator);
@@ -35,22 +32,16 @@ public class PlayerCardSetUp : MonoBehaviour
         {
             enemyCards[i].Init(enemies[i].Mediator);
         }
-
         PlayIntroAnimation();
     }
 
     private void PlayIntroAnimation()
     {
-        Tweener.Tween(this, 0f, 1f, 0.5f, TweenStyle.quadratic,
-            value => canvasGroup.alpha = value
-        );
-
         teamMateCard.RotateForFun();
         foreach (var enemyCard in enemyCards)
         {
             enemyCard.RotateForFun();
         }
 
-        fadeManager.SwitchFade(fadeInDuration);
     }
 }

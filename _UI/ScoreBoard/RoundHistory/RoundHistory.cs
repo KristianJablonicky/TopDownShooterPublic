@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class RoundHistory : MonoBehaviour
@@ -7,23 +8,60 @@ public class RoundHistory : MonoBehaviour
     [SerializeField] private RoundHistoryEntry entryPrefab;
 
     private RoundHistoryEntry[] rounds;
+    public static List<RoundResults> LastMatchRoundResults { get; private set; }
 
     public void Init()
     {
-        rounds = new RoundHistoryEntry[Constants.roundsToWinMatch * 2 - 1];
-        for (int i = 0; i < rounds.Length; i++)
+        InstantiateRoundEntries(Constants.roundsToWinMatch * 2 - 1);
+        LastMatchRoundResults = new();
+        GameStateManager.Instance.RoundNumberWonByTeam += OnRoundEnd;
+    }
+
+    public void InitGameEnd()
+    {
+        if (LastMatchRoundResults is null) return;
+
+        InstantiateRoundEntries(LastMatchRoundResults.Count);
+        for (int i = 0; i < LastMatchRoundResults.Count; i++)
+        {
+            rounds[i].SetUp
+            (
+                teamBackgrounds[LastMatchRoundResults[i].Team],
+                roles[LastMatchRoundResults[i].Role]
+            );
+        }
+        LastMatchRoundResults = null;
+    }
+
+    private void InstantiateRoundEntries(int roundsCount)
+    {
+        rounds = new RoundHistoryEntry[roundsCount];
+        for (int i = 0; i < roundsCount; i++)
         {
             rounds[i] = Instantiate(entryPrefab, transform);
         }
-        GameStateManager.Instance.RoundNumberWonByTeam += OnRoundEnd;
     }
 
     private void OnRoundEnd(int roundNumber, TeamData winningTeam)
     {
+        int name = (int)winningTeam.Name,
+            role = (int)winningTeam.CurrentRole;
         rounds[roundNumber - 1].SetUp
         (
-            teamBackgrounds[(int)winningTeam.Name],
-            roles[(int)winningTeam.CurrentRole]
+            teamBackgrounds[name],
+            roles[role]
         );
+        LastMatchRoundResults.Add(new(name, role));
+    }
+
+    public class RoundResults
+    {
+        public RoundResults(int team, int role)
+        {
+            Team = team;
+            Role = role;
+        }
+        public int Team { get; private set; }
+        public int Role { get; private set; }
     }
 }

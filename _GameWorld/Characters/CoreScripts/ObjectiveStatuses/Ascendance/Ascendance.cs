@@ -9,13 +9,14 @@ public class Ascendance : MonoBehaviour, IResettable
 
     [Header("Ascendance Settings")]
     [field: SerializeField] public float TimeToAscend { get; private set; } = 0.75f;
-    [field: SerializeField, Range(1f, 2f)]
-    public float VisionOnAscension { get; private set; } = 1.2f;
+    [field: SerializeField, Range(0f, 1f)]
+    public float VisionOnAscension { get; private set; } = 0.25f;
 
     public event Action TeamMateAscended;
     public event Action<CharacterMediator> SpiritLeft, OnAscendance;
 
     public bool HasAscended { get; private set; } = false;
+    public bool HasSpiritLeftAlready { get; private set; } = false;
     
     
     private void Start()
@@ -27,7 +28,7 @@ public class Ascendance : MonoBehaviour, IResettable
     {
         if (mediator.IsLocalPlayer)
         {
-            mediator.PlayerVision.SetVisionRangeProportional(VisionOnAscension);
+            mediator.VisionRange.ModifiableValue.AddOrChangeMultiplier(this, VisionOnAscension);
         }
         HasAscended = true;
         //owner.SpriteRenderer.MultiplyColor(0.1f, 1f, 1f);
@@ -50,12 +51,14 @@ public class Ascendance : MonoBehaviour, IResettable
             teamMate.Mediator.Ascendance.Ascend();
             TeamMateAscended?.Invoke();
             SpiritLeft?.Invoke(owner);
+            HasSpiritLeftAlready = true;
         }
     }
 
     public void Reset()
     {
         HasAscended = false;
+        HasSpiritLeftAlready = false;
         particleSpawner.SetActive(false);
         postMortemEye.SetActive(false);
     }

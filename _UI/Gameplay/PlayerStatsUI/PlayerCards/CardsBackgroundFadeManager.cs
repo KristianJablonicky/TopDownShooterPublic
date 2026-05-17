@@ -6,10 +6,11 @@ public class CardsBackgroundFadeManager : MonoBehaviour
 
     private void Start()
     {
+        allPlayersCG.alpha = 0f;
         ToggleGO(allPlayersCG, false);
         ToggleGO(soloCG, true);
     }
-    public void SwitchFade(float duration)
+    public void EnableCardsAndSwitchFade(float duration)
     {
         ToggleGO(allPlayersCG, true);
         Fade(soloCG, 0f, duration);

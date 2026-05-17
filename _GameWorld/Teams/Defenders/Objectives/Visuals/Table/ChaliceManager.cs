@@ -32,6 +32,8 @@ public class ChaliceManager : MonoBehaviour
 
     public void StartChannelingAnimation(CharacterMediator sacrificingMediator, float duration)
     {
+        if (lastSacrificeIndex <= 0) return;
+
         var targetChalice = chalices[lastSacrificeIndex - 1];
         var channelingEffect = Instantiate(channelingEffectPrefab, sacrificingMediator.GetPosition(), Quaternion.identity);
         Tweener.Tween(this, 0f, 1f, duration, TweenStyle.linear,

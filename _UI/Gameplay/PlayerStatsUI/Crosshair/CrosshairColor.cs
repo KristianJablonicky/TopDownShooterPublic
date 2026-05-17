@@ -7,8 +7,11 @@ public class CrosshairColor : MonoBehaviour
 
     private void Start()
     {
-        var colorOption = DataStorage.Instance.GetInt(DataKeyInt.SettingsCrosshairColor);
-        SetColor(colorOption);
+        SetColor(DataStorage.Instance.SubscribeAndGetCurrentValue(SettingsKeys.CrosshairColor, SetColor, 0));
+    }
+    private void OnDestroy()
+    {
+        DataStorage.Instance.Unsubscribe(SettingsKeys.CrosshairColor, SetColor);
     }
 
     public void SetColor(int colorIndex)

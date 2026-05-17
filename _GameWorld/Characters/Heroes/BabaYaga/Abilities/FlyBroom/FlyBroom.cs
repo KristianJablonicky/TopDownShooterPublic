@@ -7,17 +7,26 @@ public class FlyBroom : MovementAbility
     [SerializeField] private float movementForcePerSecond = 85f;
     [SerializeField] private float startChannel = 0.5f;
     [SerializeField] private float onFlightEndChannel = 0.25f;
+    [Header("Audio")]
+    [SerializeField] private AudioClip flyingClip;
+    [SerializeField] private float fadeDuration = 0.4f;
     private bool heldDown = false;
     protected override void OnKeyDown(Vector2 position)
     {
         if (channelingManager.Channeling) return;
 
         channelingManager.StartChannelingStandingStill(startChannel, StartFlight, owner, false);
+        AlsoPlayAnimation();
     }
     private void StartFlight()
     {
         heldDown = true;
         channelingManager.StartChannelingStandingStill(duration, () => OnKeyUp(Vector2.zero), owner, false);
+        AlsoPlayAnimation(specialIndex: 0);
+        owner.AnimationController.SetLetVisibility(false);
+
+        owner.SoundPlayer.RequestPlaySound(owner.GetTransform(), flyingClip, false);
+        owner.SoundPlayer.FadeVolume(0f, 1f, fadeDuration);
     }
 
     public override void IUpdate(float dt)
@@ -39,6 +48,9 @@ public class FlyBroom : MovementAbility
         OnCast();
         owner.MovementController.MovementEnabled = true;
         channelingManager.StartChanneling(onFlightEndChannel, null);
+        AlsoPlayAnimation(specialIndex: 1);
+        owner.AnimationController.SetLetVisibility(true);
+        owner.SoundPlayer.FadeVolume(1f, 0f, onFlightEndChannel);
     }
 
     protected override void OnReset()
@@ -46,7 +58,7 @@ public class FlyBroom : MovementAbility
         heldDown = false;
     }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
         return $"Duration: {duration}\nSpeed: {movementForcePerSecond}\nTotal channel time: {startChannel + onFlightEndChannel}";
     }

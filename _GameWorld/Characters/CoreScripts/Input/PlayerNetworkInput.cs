@@ -1,11 +1,19 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
-public class PlayerNetworkInput : NetworkBehaviour
+/// <summary>
+/// This class is split into:
+/// PlayerNetworkUtilities
+/// PlayerNetworkDamage
+/// PlayerNetworkShooting
+/// PlayerNetworkPrediction
+/// PlayerNetworkAnimations
+/// PlayerNetworkTeamSelection
+/// PlayerNetworkObjectives
+/// </summary>
+public partial class PlayerNetworkInput : NetworkBehaviour
 {
     [SerializeField] private CharacterMediator mediator;
     [SerializeField] private PlayerInputHandler inputHandler;
@@ -19,9 +27,12 @@ public class PlayerNetworkInput : NetworkBehaviour
 
     public static event Action<CharacterMediator> PlayerSpawned;
 
+    public Action<EmoteType> Emoted, EmotedPrivately;
+
     public override void OnNetworkSpawn()
     {
-        if (!NPC) SetUpPlayer();
+        if (!mediator.IsTrainingDummy
+        &&  !mediator.IsBot) SetUpPlayer();
         else SetUpNPC();
     }
 
@@ -31,6 +42,7 @@ public class PlayerNetworkInput : NetworkBehaviour
         if (!IsOwner)
         {
             inputHandler.enabled = false;
+            mediator.RotationController.enabled = false;
         }
         else
         {
@@ -40,272 +52,48 @@ public class PlayerNetworkInput : NetworkBehaviour
             PlayerSpawned?.Invoke(mediator);
             mediator.PlayerVision.GetEnabled(false);
         }
-
+        SetUpPrediction(IsOwner);
         CharacterManager.Instance.RegisterCharacter(mediator);
     }
+
+    public void SetName(string name) => PlayerName.Value = name;
 
     private static ulong botOffset = 0;
     private void SetUpNPC()
     {
-        mediator.SetID(Constants.NPCID + botOffset);
+        //mediator.SetID(Constants.NPCID + botOffset);
+        mediator.SetID((ulong)CharacterManager.Instance.Mediators.Count);
         botOffset++;
+        if (mediator.IsBot)
+        {
+            SetUpPrediction(IsOwner);
+        }
         CharacterManager.Instance.RegisterCharacter(mediator);
     }
-
-    #region damage
-
-    public Action<int, DamageTag> OnDamageDealt;
-    public Action<int, DamageTag, CharacterMediator> OnDamageDealtToMediator;
-
-    public void DealDamage(int damage, DamageTag tag, CharacterMediator targetMediator, CharacterMediator sourceMediator)
-    {
-        if (!targetMediator.HealthComponent.CanTakeDamage) return;
-
-        if (!mediator.IsAlive)
-        {
-            Debug.Log($"Would have dealt {damage} to {targetMediator.PlayerId}, but I am dead :/");
-            return;
-        }
-
-        if (!targetMediator.IsNPC) DealDamageRequestRpc(damage, tag, targetMediator.PlayerId, sourceMediator.PlayerId);
-        else
-        {
-            targetMediator.HealthComponent.TakeDamage(damage, tag, mediator);
-            NotifySubscribers(damage, tag, targetMediator);
-        }
-    }
-    public void TakeLethalDamage()
-    {
-        if (!mediator.HealthComponent.CanTakeDamage) return;
-        DealDamageRequestRpc(mediator.HealthComponent.CurrentHealth, DamageTag.Neutral, mediator.PlayerId, mediator.PlayerId);
-    }
-    public void TakeLethalDamage(CharacterMediator damager, DamageTag tag)
-    {
-        if (!mediator.HealthComponent.CanTakeDamage) return;
-        damager.NetworkInput.DealDamage(mediator.HealthComponent.CurrentHealth, tag, mediator, damager);
-    }
-
-    public void TakeDamage(int damage, DamageTag tag)
-    {
-        DealDamageRequestRpc(damage, tag, mediator.PlayerId, mediator.PlayerId);
-    }
-
-    [Rpc(SendTo.Server)]
-    private void DealDamageRequestRpc(int damage, DamageTag tag, ulong targetID, ulong sourceID)
-    {
-        NotifyDealDamageRpc(damage, tag, targetID, sourceID);
-    }
-
-    [Rpc(SendTo.Everyone)]
-    private void NotifyDealDamageRpc(int damage, DamageTag tag, ulong targetID, ulong sourceID)
-    {
-        var manager = CharacterManager.Instance;
-        var hitMediator = manager.Mediators[targetID];
-
-        hitMediator.HealthComponent.TakeDamage(damage, tag, mediator);
-
-        var sourceMediator = manager.Mediators[sourceID];
-        if (sourceMediator == manager.LocalPlayerMediator
-            && sourceMediator != hitMediator)
-        {
-            NotifySubscribers(damage, tag, hitMediator);
-        }
-    }
-
-    private void NotifySubscribers(int damage, DamageTag tag, CharacterMediator hitMediator)
-    {
-        OnDamageDealt?.Invoke(damage, tag);
-        OnDamageDealtToMediator?.Invoke(damage, tag, hitMediator);
-    }
-
-    [Rpc(SendTo.Server)]
-    public void RequestHealRpc(int healAmount, bool overHeal)
-    {
-        if (mediator.IsAlive)
-        {
-            NotifyHealRpc(healAmount, overHeal);
-        }
-    }
-    [Rpc(SendTo.Everyone)]
-    private void NotifyHealRpc(int healAmount, bool overHeal)
-    {
-        var health = mediator.HealthComponent;
-        if (!overHeal)
-        {
-            health.CurrentHealth.Adjust(healAmount, ceiling: health.MaxHealth);
-        }
-        else
-        {
-            health.AdjustMaxHealth(healAmount, true);
-        }
-    }
-    #endregion
-
-    #region utilities
-    public ulong[] MediatorsToIds(List<CharacterMediator> mediators)
-    {
-        return mediators.Select(m => m.PlayerId).ToArray();
-    }
-
-    public RpcParams GetRpcParams(List<CharacterMediator> mediators)
-    {
-        var ids = mediators.Select(m => m.PlayerId).ToArray();
-        return GetRpcParams(ids);
-    }
-
-    public RpcParams GetRpcParams(ulong id)
-    {
-        return new RpcParams
-        {
-            Send = new RpcSendParams
-            {
-                Target = RpcTarget.Single(id, RpcTargetUse.Temp)
-            }
-        };
-    }
-
-    public RpcParams GetRpcParams(ulong[] groupIds, RpcTargetUse targetUse = RpcTargetUse.Temp)
-    {
-        return new RpcParams
-        {
-            Send = new RpcSendParams
-            {
-                Target = RpcTarget.Group(groupIds, targetUse)
-            }
-        };
-    }
-    #endregion
-
-
-    #region shooting
-
-    [Rpc(SendTo.Server, RequireOwnership = true)]
-    public void RequestReloadRpc()
-    {
-        ClientReloadRpc();
-    }
-
-    [Rpc(SendTo.Everyone)]
-    public void ClientReloadRpc()
-    {
-        mediator.Gun.Reload();
-    }
-
-
-    [Rpc(SendTo.Server, RequireOwnership = true)]
-    public void RequestShootRpc(
-        Vector2 cursorPos,
-        Vector2 actualShootPosition,
-        bool canHeadShot,
-        AimDirection aimDirection,
-        RpcParams rpcParams = default)
-    {
-        // Runs on the server
-        if (canHeadShot)
-        {
-            var headShotResult = gun.TryToHeadShot(cursorPos);
-            if (headShotResult.HasValue)
-            {
-                NotifyHeadshotRpc(headShotResult.Value);
-                return;
-            }
-        }
-        var source = mediator.GetPosition();
-        var direction = (actualShootPosition - mediator.GetPosition()).normalized;
-        var sourceToDestinationDistance = Vector2.Distance(source, actualShootPosition);
-
-        if (gun.SingleFloorShot(aimDirection, sourceToDestinationDistance))
-        {
-            var target = gun.RaycastForDamage(source, direction, null);
-            if (target.HasValue)
-            {
-                NotifyStoppedShotRpc(target.Value);
-            }
-            else
-            {
-                NotifyShotRpc(direction);
-            }
-        }
-        else
-        {
-            // shot travelling through the current floor
-            var target = gun.RaycastForDamage(source, direction, actualShootPosition);
-            if (target.HasValue)
-            {
-                NotifyStoppedShotRpc(target.Value);
-            }
-
-            // Visiting the other floor
-            else
-            {
-                NotifyStoppedShotRpc(actualShootPosition);
-
-                var floorOffset = FloorUtilities.GetYOffset(aimDirection, mediator.CurrentFloor);
-                if (floorOffset.HasValue)
-                {
-                    var offset2D = new Vector2(0f, floorOffset.Value);
-
-                    var range = Mathf.Min(sourceToDestinationDistance * 2, gun.GunConfig.bulletRange);
-
-                    var destination = source + offset2D + direction * range;
-
-                    source = actualShootPosition + offset2D;
-
-                    target = gun.RaycastForDamage(source, direction, destination, Constants.crossFloorDamageMultiplier);
-                    if (target.HasValue)
-                    {
-                        NotifyStoppedShotRpc(target.Value, source);
-                    }
-                    else
-                    {
-                        NotifyStoppedShotRpc(destination, source);
-                    }
-                }
-            }
-        }
-    }
-
-    [Rpc(SendTo.Everyone)]
-    public void ShowGunshotVisualsRPC(ulong playerId)
-    {
-        var player = CharacterManager.Instance.Mediators[playerId];
-        player.Gun.ShowShotVisuals();
-    }
-
-    [Rpc(SendTo.Everyone)]
-    private void NotifyHeadshotRpc(Vector2 bulletEnd, RpcParams rpcParams = default)
-    {
-        gun.ShowHeadshotBulletTrail(bulletEnd);
-    }
-
-    [Rpc(SendTo.Everyone)]
-    private void NotifyShotRpc(Vector2 direction, RpcParams rpcParams = default)
-    {
-        gun.ShowBulletTrail(direction);
-    }
-
-    [Rpc(SendTo.Everyone)]
-    private void NotifyStoppedShotRpc(Vector2 target, RpcParams rpcParams = default)
-    {
-        gun.ShowBulletTrailStopped(target);
-    }
-
-    [Rpc(SendTo.Everyone)]
-    private void NotifyStoppedShotRpc(Vector2 target, Vector2 source, RpcParams rpcParams = default)
-    {
-        gun.ShowBulletTrailStopped(target, source, true);
-    }
-    #endregion
 
     #region misc
     [Rpc(SendTo.Server)]
     public void RequestPingRpc(Vector2 pingPos, AimDirection aimDirection, ulong playerId)
     {
-        if (!GameStateManager.Instance.GameInProgress) return;
-
         var mediator = CharacterManager.Instance.Mediators[playerId];
-        var teamMateIds = mediator.AbilityRPCs.GetTeamMateIds();
-        ClientPingRpc(pingPos, aimDirection, GetRpcParams(teamMateIds));
+        ClientPingRpc(pingPos, aimDirection, GetRpcParams(mediator.PlayerId));
+
+        if (GameStateManager.Instance.GameInProgress)
+        {
+            var teamMate = mediator.GetTeamMate();
+            var ai = teamMate.AiDecisions;
+            if (ai != null && teamMate.IsAlive)
+            {
+                var mediatorDecidingFloor = mediator.IsAlive ? mediator : teamMate;
+                var targetFloor = FloorUtilities.GetTargetFloor(mediatorDecidingFloor, aimDirection);
+                var targetPos = FloorUtilities.TransformPositionIfNeeded(pingPos, targetFloor);
+                ai.GoToPosition(targetPos);
+            }
+            else
+            {
+                ClientPingRpc(pingPos, aimDirection, GetRpcParams(teamMate.PlayerId));
+            }
+        }
     }
 
     [Rpc(SendTo.SpecifiedInParams)]
@@ -314,54 +102,35 @@ public class PlayerNetworkInput : NetworkBehaviour
         var pingInstance = Instantiate(ping, pingPos, Quaternion.identity);
         pingInstance.Init(aimDirection);
     }
-    #endregion
-
-    #region Objectives
-    public void RequestBloodPickUp(ulong bloodOwnerId)
-    {
-        RequestBloodPickUpRpc(mediator.PlayerId, bloodOwnerId);
-    }
-
-    [Rpc(SendTo.Server)]
-    private void RequestBloodPickUpRpc(ulong playerPickingUpBloodId, ulong bloodOwnerId)
-    {
-        RequestBloodPickUpClientRpc(playerPickingUpBloodId, bloodOwnerId);
-    }
 
     [Rpc(SendTo.Everyone)]
-    private void RequestBloodPickUpClientRpc(ulong playerPickingUpBloodId, ulong bloodOwnerId)
+    public void EmoteRpc(ulong emotingPlayerId, EmoteType emoteType)
     {
-        var manager = CharacterManager.Instance;
-        var bloodOwner = manager.Mediators[bloodOwnerId];
-
-        bloodOwner.BloodManager.CleanUpBlood();
-
-        var defenderPickingUp = manager.Mediators[playerPickingUpBloodId];
-        defenderPickingUp.BloodManager.PickUpBlood();
+        var mediator = CharacterManager.GetCharacterMediator(emotingPlayerId);
+        mediator.NetworkInput.Emoted?.Invoke(emoteType);
     }
 
-
-    public void RequestObjectiveSacrifice()
+    public void EmoteTeam(ulong playerId, ulong teamMateId, EmoteType emoteType)
     {
-        RequestObjectiveSacrificeRpc(mediator.PlayerId);
+        var targetIds = new ulong[] { playerId, teamMateId };
+        TeamMateEmoteRpc(emoteType, GetRpcParams(targetIds));
     }
+
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void TeamMateEmoteRpc(EmoteType emoteType, RpcParams rpcParams)
+    {
+        EmotedPrivately?.Invoke(emoteType);
+    }
+
 
     [Rpc(SendTo.Server)]
-    private void RequestObjectiveSacrificeRpc(ulong sacrificingMediatorId)
+    public void RequestAbilityCastRpc(AbilityType abilityType, bool pushedDown, Vector2 cursorPosition)
     {
-        ObjectiveSacrificeClientRpc(sacrificingMediatorId);
+        var ability = (ActiveAbility)mediator.GetTeamMate().AbilityManager.GetAbility(abilityType);
+        if (!ability.ReadyToCast) return;
+
+        ability.OnKeyInteraction(pushedDown, cursorPosition);
     }
-
-    [Rpc(SendTo.Everyone)]
-    private void ObjectiveSacrificeClientRpc(ulong sacrificingMediatorId)
-    {
-        var manager = CharacterManager.Instance;
-        var sacrificingMediator = manager.Mediators[sacrificingMediatorId];
-
-        var objective = DefenderObjective.Instance;
-        objective.StartSacrifice(sacrificingMediator);
-    }
-
     #endregion
 
     public override void OnDestroy()

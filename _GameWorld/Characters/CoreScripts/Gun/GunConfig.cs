@@ -1,10 +1,8 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "GunConfig", menuName = "Guns/GunConfig")]
-public class GunConfig : ScriptableObject
+public class GunConfig : ScriptableObjectBase
 {
-    [field: SerializeField] public string GunName {  get; private set; }
-
     [Header("General")]
     public bool isAutomatic = true;
 
@@ -32,4 +30,9 @@ public class GunConfig : ScriptableObject
 
     [Header("Specific")]
     public int shotCount = 1;
+
+    public override string _GetSpecificAttributes()
+    {
+        return $"{damage} damage\n{headshotDamage} HS damage\n{capacity} capacity\n{RPM} RPM\n{reloadDuration}s reload time\nRange: {bulletRange}\n{(shotCount == 1 ? "" : $"{shotCount} bullets per shot")}";
+    }
 }

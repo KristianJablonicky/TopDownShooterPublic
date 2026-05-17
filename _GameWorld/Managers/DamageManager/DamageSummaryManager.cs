@@ -57,6 +57,10 @@ public class DamageSummaryManager : MonoBehaviour
             var victimRecord = DamageRecords[victim];
             victimRecord.TookDamage(damage);
         }
+        if (victim.playerData.GetTeamMate() != shooter.playerData) // don't count friendly fire
+        {
+            shooter.playerData.PlayerScore.DamageDealt.Adjust(damage);
+        }
     }
 
     private void OnNewRoundStarted(float initialDelay)

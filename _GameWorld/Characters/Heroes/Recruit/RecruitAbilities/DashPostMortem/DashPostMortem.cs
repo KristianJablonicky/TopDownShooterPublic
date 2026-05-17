@@ -21,7 +21,7 @@ public class DashPostMortem : AbilityPostMortem
     }
     protected override void OnKeyDownSecure(Vector2 position) { }
 
-    protected override string _GetAbilitySpecificStats()
+    public override string _GetSpecificAttributes()
     {
         return $"Applied velocity: {appliedVelocity}";
     }

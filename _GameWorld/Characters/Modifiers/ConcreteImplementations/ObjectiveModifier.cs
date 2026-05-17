@@ -1,6 +1,9 @@
 public abstract class ObjectiveModifier : IModifierStrategy
 {
     protected CharacterMediator owner;
+
+    public ModifierType ModifierType => ModifierType.Buff;
+
     public void Apply(CharacterMediator owner, Modifier modifier)
     {
         this.owner = owner;

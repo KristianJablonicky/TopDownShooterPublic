@@ -4,6 +4,7 @@ using UnityEngine;
 public class AnimationController : MonoBehaviour, IResettable
 {
     [Header("References")]
+    [SerializeField] private CharacterMediator owner;
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private SpriteRenderer outlineSpriteRenderer;
 
@@ -12,11 +13,19 @@ public class AnimationController : MonoBehaviour, IResettable
     [SerializeField] private AnimationData abilityMovementAnimation;
     [SerializeField] private AnimationData abilityUtilityAnimation;
     [SerializeField] private AnimationDataWithDuration shootAnimation;
+    [SerializeField] private AnimationData[] extraAnimations;
 
 
     [Header("Death visuals")]
     [SerializeField] private Sprite corpseSprite;
     [SerializeField] private Corpse corpsePrefab;
+
+    [Header("Always visible settings")]
+    [SerializeField] private SpriteRenderer legs;
+    [SerializeField] private SpriteRenderer thirdEye;
+    [SerializeField] private LayerMask alwaysVisibleLayer;
+    [SerializeField] private string sortingLayerName = "Default";
+    [SerializeField] private int sortingLayerOrder = 10;
 
     private Coroutine currentlyRunningAnimation;
     private Sprite defaultSprite, defaultOutlineSprite;
@@ -26,6 +35,22 @@ public class AnimationController : MonoBehaviour, IResettable
         defaultSprite = spriteRenderer.sprite;
         defaultOutlineSprite = outlineSpriteRenderer.sprite;
     }
+    
+    public void MakeSpritesAlwaysVisible()
+    {
+        SetUpSpriteRenderer(spriteRenderer, 1);
+        SetUpSpriteRenderer(outlineSpriteRenderer, 0);
+        SetUpSpriteRenderer(legs, -1);
+        SetUpSpriteRenderer(thirdEye, 2);
+    }
+
+    public void SetUpSpriteRenderer(SpriteRenderer sr, int extraOrderSetting)
+    {
+        sr.gameObject.layer = Mathf.RoundToInt(Mathf.Log(alwaysVisibleLayer.value, 2)); ;
+        sr.sortingLayerName = sortingLayerName;
+        sr.sortingOrder = sortingLayerOrder + extraOrderSetting;
+    }
+
     public void PlayAnimation(Animations animation)
     {
         var animationData = GetAnimationDataWithDuration(animation);
@@ -35,25 +60,54 @@ public class AnimationController : MonoBehaviour, IResettable
             PlayAnimation(animation, animationData, animationData.Duration);
         }
     }
-
+    public void PlayAnimationFromExtras(Animations animation, int index, float duration)
+    {
+        if (extraAnimations.Length > index)
+        {
+            PlayAnimationSafe(animation, extraAnimations[index], duration);
+        }
+        else
+        {
+            Debug.LogWarning($"Trying to play extra {animation} at nonexistent index {index}!");
+        }
+    }
     public void PlayAnimation(Animations animation, float duration)
     {
         var animationData = GetAnimationData(animation);
+        PlayAnimationSafe(animation, animationData, duration);
+    }
+    private void PlayAnimationSafe(Animations animation, AnimationData animationData, float duration)
+    {
+
         if (animationData != null)
         {
             if (!RequestStopCoroutine(animation)) return;
             PlayAnimation(animation, animationData, duration);
         }
     }
-
+    
     private void PlayAnimation(Animations animationType, AnimationData animationData, float duration)
     {
-        currentlyRunningAnimation = StartCoroutine(AnimationCoroutine(animationData, duration));
         currentAnimationType = animationType;
+        currentlyRunningAnimation = StartCoroutine(AnimationCoroutine(animationData, duration));
     }
 
     private IEnumerator AnimationCoroutine(AnimationData animation, float duration)
     {
+        if (animation.audioClips.Length > 0)
+        {
+            SoundPlayer soundPlayer;
+            if ((int)currentAnimationType >= 3)
+            {
+                soundPlayer = owner.AbilityManager.SoundPlayer;
+            }
+            else
+            {
+                soundPlayer = owner.SoundPlayer;
+            }
+            soundPlayer.RequestPlaySound(transform, animation.audioClips, false);
+        }
+
         var frames = animation.FrameCount;
         var wait = new WaitForSeconds(duration / frames);
         for (int i = 0; i < frames; i++)
@@ -118,6 +172,14 @@ public class AnimationController : MonoBehaviour, IResettable
     {
         RequestStopCoroutine();
         SetDefaultSprites();
+        SetLetVisibility(true);
+    }
+
+    public void SetLetVisibility(bool visible)
+    {
+        var color = legs.color;
+        color.a = visible ? 1f : 0f;
+        legs.color = color;
     }
 }
 

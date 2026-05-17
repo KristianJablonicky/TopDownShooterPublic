@@ -136,6 +136,9 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         var suffix = $"{winningTeam.Wins} : {winningTeam.EnemyTeamData.Wins}";
         ShowNotification(winningTeam, localPlayerWon, $"-Game won!-\n{suffix}", $"-Game lost!-\n{suffix}");
         GameWon?.Invoke(localPlayerWon);
+
+        yield return new WaitForSeconds(roundStartDelay * 0.5f);
+        SceneManager.Disconnect();
     }
 
     public void StartNewRound()
@@ -176,7 +179,7 @@ public class GameStateManager : SingletonMonoBehaviour<GameStateManager>
         var index = firstPosBlocked ? 1 : 0;
         firstPosBlocked = true;
 
-        if (player.Mediator.IsLocalPlayer)
+        if (player.Mediator.IsOwner)
         {
             player.Mediator.MovementController.SetPosition(spawns[index].position, null);
         }

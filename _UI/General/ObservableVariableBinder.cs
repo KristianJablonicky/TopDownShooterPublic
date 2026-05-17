@@ -71,6 +71,13 @@ public class ObservableVariableBinder : MonoBehaviour
         }
     }
 
+    public void SetText(string text)
+    {
+        gameObject.SetActive(true);
+        textField.text = text;
+    }
+    public TMP_Text TmpText => textField;
+
     #region Display Strategies
     private IDisplayStrategy DisplayStrategyFactory()
     {

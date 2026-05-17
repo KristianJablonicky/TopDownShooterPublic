@@ -1,29 +1,22 @@
 using System;
 using System.Collections;
-using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 using static AimDirection;
 
-public class PlayerInputHandler : MonoBehaviour
+public class PlayerInputHandler : InputHandlerBase
 {
     private RawImage rawImage;
     private Camera uiCamera;
     private Camera playerCamera, teamMateCamera;
 
-    [SerializeField] private PlayerNetworkInput networkInput;
     [SerializeField] private RenderTexture renderTexture;
-    [SerializeField] private CharacterMediator mediator;
     [SerializeField] private MovementController movementController;
-    [SerializeField] private RotationController rotationController;
-    [SerializeField] private Gun gun;
 
     [SerializeField] private float cursorAccuracyMultiplier = 0.1f;
-    [SerializeField] private float pingCoolDown = 2.5f;
+    [SerializeField] private float pingCoolDown = 2.5f, emoteCoolDown = 3f;
 
     private AbilityManager abilityManager;
-
-    public AimDirection AimDirection { get; private set; } = Straight;
 
     public event Action<bool> AimedDownSights, ScrolledWheelUp;
     public event Action<AimDirection> AimDirectionChanged;
@@ -31,16 +24,23 @@ public class PlayerInputHandler : MonoBehaviour
     private bool aimingDownSights = false;
     private bool ADSSetToToggle;
 
-    public Vector2 CursorPosition { get; private set; }
+    public static Vector2 CursorPosition { get; private set; }
     private Action updateAction;
+    private Action conditionalAction;
 
-    private void Awake()
+    private CommunicationCoolDown pingCoolDownHandler, emoteCoolDownHandler;
+
+    protected override void Awake()
     {
+        base.Awake();
         enabled = false;
         updateAction = UpdateInputAlive;
-        mediator.Died += (_) => { gameObject.SetActive(true); updateAction = null; };
-        mediator.Ascendance.SpiritLeft += (_) => { updateAction = UpdateInputPostMortem; };
-        mediator.Respawned += (_) => updateAction = UpdateInputAlive;
+        mediator.Died += (_) => OnDeath();
+        mediator.Ascendance.SpiritLeft += (_) => OnSpiritLeft();
+        mediator.Respawned += (_) => OnRespawned();
+
+        pingCoolDownHandler = new(pingCoolDown);
+        emoteCoolDownHandler = new(emoteCoolDown);
     }
 
     public void Init()
@@ -48,7 +48,9 @@ public class PlayerInputHandler : MonoBehaviour
         enabled = true;
         SetPlayerPreferences();
         abilityManager = mediator.AbilityManager;
+        GameStateManager.Instance.GameStarted += OnGameStart;
     }
+
     private void SetPlayerPreferences()
     {
         ADSSetToToggle = Settings.AdsSetToToggle;
@@ -60,6 +62,31 @@ public class PlayerInputHandler : MonoBehaviour
         this.rawImage = rawImage;
     }
     public void SetTeamMateCamera(Camera teamMateCamera) => this.teamMateCamera = teamMateCamera;
+
+    private void OnDeath()
+    {
+        gameObject.SetActive(true);
+        updateAction = UpdateAlwaysAvailable;
+        SetAimDirection(Straight);
+    }
+    private bool postMortem = false;
+    private CharacterMediator teamMate;
+    private void OnSpiritLeft()
+    {
+        updateAction = UpdateInputPostMortem;
+        if (teamMate == null
+        &&  GameStateManager.Instance.GameInProgress)
+        {
+            teamMate = mediator.GetTeamMate();
+        }
+        postMortem = true;
+    }
+    private void OnRespawned()
+    {
+        updateAction = UpdateInputAlive;
+        postMortem = false;
+        SetAimDirection(Straight);
+    }
 
     private void Update()
     {
@@ -111,9 +138,6 @@ public class PlayerInputHandler : MonoBehaviour
 
     private void UpdateMovement()
     {
-        // TODO: reconsider adding in walk
-        //ChangeOnHoldState(KeyCode.LeftShift, movementController.Walk);
-
         var moveX = Input.GetAxisRaw("Horizontal");
         var moveY = Input.GetAxisRaw("Vertical");
         movementController.WalkInDirection(moveX, moveY);
@@ -133,16 +157,13 @@ public class PlayerInputHandler : MonoBehaviour
 
         rotationController.SetCursorPosition(CursorPosition);
         
-        if (!EscapeMenuManager.MenuOpen)
+        if (Input.GetMouseButtonDown(0))
         {
-            if (Input.GetMouseButtonDown(0))
-            {
-                Shoot(CursorPosition, true);
-            }
-            else if (Input.GetMouseButton(0))
-            {
-                Shoot(CursorPosition, false);
-            }
+            Shoot(CursorPosition, true);
+        }
+        else if (Input.GetMouseButton(0))
+        {
+            Shoot(CursorPosition, false);
         }
 
         if (ADSSetToToggle)
@@ -158,57 +179,47 @@ public class PlayerInputHandler : MonoBehaviour
             ChangeOnHoldState(KeyCode.Mouse1, AimedDownSights.Invoke);
         }
 
-        bool heldControl = Input.GetKey(KeyCode.LeftControl);
-
-        var scroll = Input.GetAxis("Mouse ScrollWheel");
-        if (scroll > 0f)
-        {
-            HandleScrolling(heldControl, true);
-        }
-        else if (scroll < 0f)
-        {
-            HandleScrolling(heldControl, false);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Mouse2))
-        {
-            SetAimDirection(Straight);
-        }
+        HandleZoom();
     }
 
     private void UpdateMousePostMortem()
     {
-        var scroll = Input.GetAxis("Mouse ScrollWheel");
-        var heldControl = Input.GetKey(KeyCode.LeftControl);
-        if (scroll > 0f)
-        {
-            HandleScrolling(heldControl, true);
-        }
-        else if (scroll < 0f)
-        {
-            HandleScrolling(heldControl, false);
-        }
+        HandleZoom();
+        ChangeOnHoldState(KeyCode.LeftControl, OnDirectionChange);
+    }
 
-        if (Input.GetKeyDown(KeyCode.Mouse2))
+    private void HandleZoom()
+    {
+        var scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (scroll != 0)
+        {
+            ChangeZoom(scroll > 0f);
+        }
+    }
+
+    private void ChangeZoom(bool scrolledUp)
+    {
+        ScrolledWheelUp?.Invoke(scrolledUp);
+    }
+
+    private void OnDirectionChange(bool pressedDown)
+    {
+        CharacterMediator handlingMediator = !postMortem ? mediator : teamMate;
+        if (!pressedDown)
         {
             SetAimDirection(Straight);
+            // unsubscribe twice just in case you die subscribed
+            handlingMediator.MovementController.FloorChanged -= OnFloorChange;
+            handlingMediator.MovementController.FloorChanged -= OnFloorChange;
+            return;
         }
+        SetAimDirection(FloorUtilities.GetOtherFloorDirection(handlingMediator));
+
+        handlingMediator.MovementController.FloorChanged += OnFloorChange;
     }
 
-
-    private void HandleScrolling(bool heldControl, bool scrolledUp)
-    {
-        if (heldControl)
-        {
-            ScrolledWheelUp?.Invoke(scrolledUp);
-        }
-        else
-        {
-            int change = scrolledUp ? 1 : -1;
-            var newAimDirection = Mathf.Clamp((int)AimDirection + change, 0, 2);
-            SetAimDirection((AimDirection)newAimDirection);
-        }
-    }
+    private void OnFloorChange(Floor newFloor)
+        => SetAimDirection(FloorUtilities.GetOtherFloorDirection(newFloor));
 
     private void SetAimDirection(AimDirection newAimDirection)
     {
@@ -252,21 +263,6 @@ public class PlayerInputHandler : MonoBehaviour
 
         return camera.ScreenToWorldPoint(new(px, py, playerCamera.nearClipPlane));
     }
-    private void Shoot(Vector2 cursorPos, bool firstPress)
-    {
-        if (!gun.CanShoot(firstPress)) return;
-
-        var shotCount = gun.ShotCount;
-        for (int i = 0; i < shotCount; i++)
-        {
-            var actualShootDirection = gun.GetShootDirection(cursorPos);
-            var canHeadshot = gun.CanHeadShot(firstPress, AimDirection);
-            gun.ApplyRecoil();
-
-            networkInput.RequestShootRpc(cursorPos, actualShootDirection, canHeadshot, AimDirection);
-        }
-        networkInput.ShowGunshotVisualsRPC(mediator.PlayerId);
-    }
 
     private void UpdateUniqueActions()
     {
@@ -275,6 +271,8 @@ public class PlayerInputHandler : MonoBehaviour
             if (!gun.CanReload()) return;
             networkInput.RequestReloadRpc();
         }
+
+        ChangeOnHoldState(KeyCode.LeftControl, OnDirectionChange);
     }
 
     private void UpdateAbilities()
@@ -285,7 +283,7 @@ public class PlayerInputHandler : MonoBehaviour
     private void UpdateAbility(ActiveAbility ability, bool postMortem)
     {
         if (postMortem) CursorPosition = GetCursorPosition(teamMateCamera);
-        if (!ability.ReadyToCast()) return;
+        if (!ability.ReadyToCast) return;
 
         //if (postMortem) CursorPosition = GetCursorPositionNormalized();
 
@@ -314,27 +312,100 @@ public class PlayerInputHandler : MonoBehaviour
             EscapePressed?.Invoke();
         }
 
-        if (pingReady && Input.GetKeyDown(KeyCode.V))
+        if (pingCoolDownHandler.Ready && Input.GetKeyDown(KeyCode.Mouse2))
         {
             networkInput.RequestPingRpc(CursorPosition, AimDirection, mediator.PlayerId);
-            StartCoroutine(PingCoolDown());
+            pingCoolDownHandler.Use();
+        }
+
+        if (emoteCoolDownHandler.Ready)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1)) Emote(EmoteType.positive);
+            else if (Input.GetKeyDown(KeyCode.Alpha2)) Emote(EmoteType.negative);
+            else if (Input.GetKeyDown(KeyCode.Alpha3)) EmotePrivately(EmoteType.positive);
+            else if (Input.GetKeyDown(KeyCode.Alpha4)) EmotePrivately(EmoteType.negative);
+        }
+
+        conditionalAction?.Invoke();
+    }
+
+    private void Emote(EmoteType emoteType)
+    {
+        networkInput.EmoteRpc(mediator.PlayerId, emoteType);
+        emoteCoolDownHandler.Use();
+    }
+
+    private void EmotePrivately(EmoteType emoteType)
+    {
+        var teamMate = mediator.GetTeamMate();
+        if (teamMate == null) return;
+        networkInput.EmoteTeam(mediator.PlayerId, teamMate.PlayerId, emoteType);
+        emoteCoolDownHandler.Use();
+    }
+
+    private const KeyCode movementHotKey = KeyCode.LeftShift, utilityHotKey = KeyCode.F;
+    private void OnGameStart()
+    {
+        var teamMate = mediator.GetTeamMate();
+        if (!teamMate.IsBot) return;
+        ChangeCommandBotSubscription(true);
+        teamMate.Died += (_) => ChangeCommandBotSubscription(false);
+        teamMate.RespawnedAfterDying += (_) => ChangeCommandBotSubscription(true);
+    }
+
+    private void ChangeCommandBotSubscription(bool subscribe)
+    {
+        if (subscribe)
+        {
+            conditionalAction += CommandBot;
+        }
+        else
+        {
+            conditionalAction -= CommandBot;
         }
     }
 
-    private bool pingReady = true;
-    private IEnumerator PingCoolDown()
+    private void CommandBot()
     {
-        pingReady = false;
-        yield return new WaitForSeconds(pingCoolDown);
-        pingReady = true;
+        CheckAbility(AbilityType.Movement, movementHotKey);
+        CheckAbility(AbilityType.Utility, utilityHotKey);
+    }
+
+    private void CheckAbility(AbilityType type, KeyCode abilityHotKey)
+    {
+        if (Input.GetKeyDown(abilityHotKey))
+        {
+            networkInput.RequestAbilityCastRpc(type, true, CursorPosition);
+        }
+        else if (Input.GetKeyUp(abilityHotKey))
+        {
+            networkInput.RequestAbilityCastRpc(type, false, CursorPosition);
+        }
+    }
+
+    private class CommunicationCoolDown
+    {
+        public bool Ready { get; private set; } = true;
+        private float coolDown;
+        public CommunicationCoolDown(float coolDown)
+        {
+            this.coolDown = coolDown;
+        }
+
+        public void Use()
+        {
+            if (!Ready) return;
+            Ready = false;
+            Invoker.Instance.ExecuteAfterDelay(coolDown, () => Ready = true);
+        }
     }
 
     private void UpdateDebug()
     {
-        if (Input.GetKeyDown(KeyCode.Q)) mediator.NetworkInput.DealDamage(100, DamageTag.Neutral, mediator, mediator);
+        if (Input.GetKeyDown(KeyCode.L)) mediator.NetworkInput.DealDamage(100, DamageTag.Neutral, mediator, mediator, false);
         if (Input.GetKeyDown(KeyCode.H))
         {
-            mediator.NetworkInput.DealDamage(30, DamageTag.Neutral, mediator, mediator);
+            mediator.NetworkInput.DealDamage(30, DamageTag.Neutral, mediator, mediator, false);
         }
         /*
         if (Input.GetKeyDown(KeyCode.G))

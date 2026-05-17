@@ -13,9 +13,9 @@ public class ShadowWavePostMortem : AbilityPostMortem
     {
         var destination = GetDestination(position, shadowWave.Range, true, teamMate);
         if (!destination.HasValue) return;
-        shadowWave.Cast(destination.Value, (DraculaRPCs)characterRPCs);
+        shadowWave.Cast(owner, destination.Value, (DraculaRPCs)characterRPCs);
         OnCast();
     }
 
-    protected override string _GetAbilitySpecificStats() => "";
+    public override string _GetSpecificAttributes() => "";
 }

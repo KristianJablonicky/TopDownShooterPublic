@@ -1,20 +1,10 @@
-using TMPro;
 using UnityEngine;
 
 public class AbilityButtonMenu : MonoBehaviour
 {
-    [SerializeField] private TMP_Text abilityDescription;
-    [SerializeField] private AbilityUI ability;
-    [SerializeField] private GunDescriptionUI gun;
+    [SerializeField] private CardSetUp card;
     public void OnClick()
     {
-        if (ability != null)
-        {
-            abilityDescription.text = ability.Text;
-        }
-        else if (gun != null)
-        {
-            abilityDescription.text = gun.Text;
-        }
+        TextDumpPopUpManager.Instance.ShowText(card.Name, card.LongDescription, true, card.ScriptableObjectBase.Icon);
     }
 }

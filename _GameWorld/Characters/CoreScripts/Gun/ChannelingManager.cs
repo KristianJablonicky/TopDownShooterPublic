@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 
 public class ChannelingManager : IUpdatable, IResettable
 {
@@ -40,14 +39,14 @@ public class ChannelingManager : IUpdatable, IResettable
         }
         else
         {
-            mediator.MovementController.AddOrChangeMultiplier(this, -movementSpeedMultiplier);
-            enableMovement = () => mediator.MovementController.AddOrChangeMultiplier(this, 0f);
+            mediator.MovementController.MovementModifiers.AddOrChangeMultiplier(this, -movementSpeedMultiplier);
+            enableMovement = () => mediator.MovementController.MovementModifiers.AddOrChangeMultiplier(this, 0f);
         }
 
 
         if (interruptible)
         {
-            StartChanneling(duration, enableMovement + actionOnExit, false);
+            StartChanneling(duration, enableMovement + actionOnExit, true);
         }
         else
         {
@@ -88,9 +87,18 @@ public class ChannelingManager : IUpdatable, IResettable
         }
     }
 
-    public void AlsoPlayAnAnimation(Animations animation, float durationMultiplier = 1f, float durationBonus = 0f)
+    public float AlsoPlayAnimation(Animations animation, float durationMultiplier = 1f, float durationBonus = 0f)
     {
-        animationController.PlayAnimation(animation, TimeTotal * durationMultiplier + durationBonus);
+        var duration = TimeTotal * durationMultiplier + durationBonus;
+        animationController.PlayAnimation(animation, duration);
+        return duration;
+    }
+
+    public float AlsoPlayAnimation(Animations animation, int index, float durationMultiplier = 1f, float durationBonus = 0f)
+    {
+        var duration = TimeTotal * durationMultiplier + durationBonus;
+        animationController.PlayAnimationFromExtras(animation, index, duration);
+        return duration;
     }
 
 
@@ -107,9 +115,9 @@ public class ChannelingManager : IUpdatable, IResettable
     /// Request interrupt.
     /// </summary>
     /// <returns><b>true</b> if channeling was successfully interrupted, or no channel was currently performed.</returns>
-    public bool RequestInterrupt()
+    public bool RequestInterrupt(bool forceInterrupt = false)
     {
-        if (Channeling && !Interruptible) return false;
+        if (Channeling && (!Interruptible || forceInterrupt)) return false;
         if (!allowActionCompleteOnInterruption) actionOnExit = null;
         else actionOnExit?.Invoke();
         

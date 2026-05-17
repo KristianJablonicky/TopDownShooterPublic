@@ -12,7 +12,8 @@ public abstract class ActiveAbility : Ability, IUpdatable
     public ObservableValue<float> CurrentCoolDown { get; private set; }
     
     public event Action AbilityBecameReady,
-        AbilityCast;
+        Cast,
+        PutOnCoolDown;
     public abstract AbilityHotKeys KeyCode { get; protected set; }
     
     public virtual void IUpdate(float dt)
@@ -38,8 +39,6 @@ public abstract class ActiveAbility : Ability, IUpdatable
         OnReset();
     }
 
-    protected override string _GetAbilitySuffix() => $"Cooldown: {CoolDown}";
-
     // optional subclass cleanup
     protected virtual void OnReset() { }
 
@@ -49,16 +48,20 @@ public abstract class ActiveAbility : Ability, IUpdatable
         channelingManager = owner.Gun.ChannelingManager;
     }
 
-    public void SetCoolDown(float newCoolDown) => CurrentCoolDown.Set(newCoolDown);
+    public void SetCoolDown(float newCoolDown)
+    {
+        CurrentCoolDown.Set(newCoolDown);
+        PutOnCoolDown?.Invoke();
+    }
 
     // Do not forget to invoke OnCast when the actual ability is used.
     protected void OnCast()
     {
         CurrentCoolDown.Set(CoolDown);
-        AbilityCast?.Invoke();
+        Cast?.Invoke();
     }
 
-    public bool ReadyToCast() => CurrentCoolDown == 0f;
+    public bool ReadyToCast => CurrentCoolDown == 0f;
 
     public void OnKeyInteraction(bool pressedDown, Vector2 position)
     {
@@ -77,6 +80,7 @@ public abstract class ActiveAbility : Ability, IUpdatable
     public void SetRangeIndicatorReference(GameObject rangeIndicator) => this.rangeIndicator = rangeIndicator;
     protected void ShowRangeIndicator(float range)
     {
+        if (owner.IsNpc) return;
         rangeIndicator.SetActive(true);
         rangeIndicator.transform.localScale = Vector2.one * range;
     }
@@ -109,13 +113,50 @@ public abstract class ActiveAbility : Ability, IUpdatable
         }
 
         if ((FloorUtilities.GetCurrentFloor(finalPosition) == Floor.Outside)
-        || BoundsCheck.Instance.IsPositionInsideBasement(finalPosition))
+        ||   NavMeshUtilities.IsPointOnWalkableSurface(finalPosition)
+        ||   !GameStateManager.Instance.GameInProgress)
+        //|| BoundsCheck.Instance.IsPositionInsideBasement(finalPosition)
         {
             return finalPosition;
         }
 
         return null;
     }
+
+    protected void AlsoPlayAnimation(float durationMultiplier = 1f, float durationBonus = 0f, int? specialIndex = null)
+    {
+        var type = GetOrSetAnimations();
+        float duration;
+        if (!specialIndex.HasValue)
+        {
+            duration = channelingManager.AlsoPlayAnimation(type, durationMultiplier, durationBonus);
+            owner.NetworkInput.RequestAnimationRpc(type, duration);
+        }
+        else
+        {
+            duration = channelingManager.AlsoPlayAnimation(type, specialIndex.Value, durationMultiplier, durationBonus);
+            owner.NetworkInput.RequestAnimationRpc(type, duration, specialIndex.Value);
+        }
+    }
+
+    protected void PlayAnimation(float duration)
+    {
+        var type = GetOrSetAnimations();
+        owner.NetworkInput.RequestAnimationRpc(type, duration);
+        owner.AnimationController.PlayAnimation(type, duration);
+    }
+
+    private Animations? animationType;
+    private Animations GetOrSetAnimations()
+    {
+        if (!animationType.HasValue)
+        {
+            animationType = GetAbilityType() == AbilityType.Utility ?
+                Animations.AbilityUtility : Animations.AbilityMovement;
+        }
+        return animationType.Value;
+    }
+    protected void InvokePutOnCoolDown() => PutOnCoolDown?.Invoke();
 
     /*
     [Rpc(SendTo.Server)]

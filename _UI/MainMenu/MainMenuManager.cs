@@ -8,10 +8,11 @@ using static DataKeyString;
 
 public class MainMenuManager : SingletonMonoBehaviour<MainMenuManager>
 {
-    [SerializeField] private TMP_Text career, lastMatchResults, fullScreenText, version;
+    [SerializeField] private TMP_Text career, lastMatchResults, fullScreenText;
     [SerializeField] private TMP_InputField playerNameInput;
-    [SerializeField] private Button findAMatchButton, trainingButton, quitButton, fullScreenButton;
+    [SerializeField] private Button findAMatchButton, trainingButton, altarDefenseButton, quitButton, fullScreenButton;
 
+    [SerializeField] private PopUpWindowBase matchResultsWindow;
     protected override void OverriddenAwake()
     {
         var storage = DataStorage.Instance;
@@ -39,22 +40,23 @@ public class MainMenuManager : SingletonMonoBehaviour<MainMenuManager>
         });
         trainingButton.onClick.AddListener(() =>
         {
-            SceneManager.StartGameplay(GameMode.SinglePlayer);
+            SceneManager.StartGameplay(GameMode.Training);
         });
+
+        altarDefenseButton.onClick.AddListener(() =>
+        {
+            SceneManager.StartGameplay(GameMode.AltarDefense);
+        });
+
         quitButton.onClick.AddListener (() =>
         {
             Application.Quit();
         });
-        fullScreenButton.onClick.AddListener(() =>
+
+        if (ScoreBoard.playerEntries is not null)
         {
-            Screen.fullScreen = !Screen.fullScreen;
-            fullScreenText.text = Screen.fullScreen ? "Windowed" : "Full Screen";
-        });
-
-
-        fullScreenText.text = Screen.fullScreen ? "Windowed" : "Full Screen";
-
-        version.text = $"Version: {Application.version}";
+            matchResultsWindow.GetActivated();
+        }
     }
 
     private string GetCareerText(DataStorage storage)
@@ -71,7 +73,7 @@ public class MainMenuManager : SingletonMonoBehaviour<MainMenuManager>
     public void UpdateHighScore()
     {
         var storage = DataStorage.Instance;
-        var highScore = storage.GetIntHeroSpecific(HighScore, null);
+        var highScore = storage.GetIntHeroSpecific(HighScore, null, null);
         lastMatchResults.text = $"Training HighScore: {highScore}";
     }
 

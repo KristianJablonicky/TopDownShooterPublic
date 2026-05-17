@@ -29,14 +29,14 @@ public class TrainingScoreManager : IResettable
         string suffix;
         bool isHighScore = false;
         var highScore = DataStorage.Instance.GetIntHeroSpecific(
-            DataKeyInt.HighScore, null
+            DataKeyInt.HighScore, null, null
         );
 
         if (Score > highScore)
         {
             suffix = "New High Score!";
             DataStorage.Instance.SetIntHeroSpecific(
-                DataKeyInt.HighScore, null, (int)Score
+                DataKeyInt.HighScore, null, null, (int)Score
             );
             isHighScore = true;
         }

@@ -1,4 +1,5 @@
 using System;
+using Unity.Netcode;
 using UnityEngine;
 
 public class CharacterMediator : MonoBehaviour, IResettable
@@ -12,18 +13,43 @@ public class CharacterMediator : MonoBehaviour, IResettable
     [field: SerializeField] public Hitbox Head { get; private set; }
     [field: SerializeField] public PlayerInputHandler InputHandler { get; private set; }
     [field: SerializeField] public PlayerNetworkInput NetworkInput { get; private set; }
+    [field: SerializeField] public NetworkObject NetworkObject { get; private set; }
     [field: SerializeField] public AbilityRPCs AbilityRPCs { get; private set; }
     [field: SerializeField] public PlayerVision PlayerVision { get; private set; }
+    [field: SerializeField] public VisionRange VisionRange { get; private set; }
     [field: SerializeField] public AnimationController AnimationController { get; private set; }
     [field: SerializeField] public DeathDissolveMediator DeathDissolveMediator { get; private set; }
     [field: SerializeField] public BloodManager BloodManager { get; private set; }
     [field: SerializeField] public CharacterParticlesMediator ParticlesMediator { get; private set; }
     [field: SerializeField] public Ascendance Ascendance { get; private set; }
+    [field: SerializeField] public AiDecisions AiDecisions { get; private set; }
+    [field: SerializeField] public SoundPlayer SoundPlayer { get; private set; }
     public ModifiersList Modifiers { get; private set; } = new ModifiersList();
 
     [SerializeField] private GameObject characterPhysics;
-
-    [field: SerializeField] public bool IsNPC { get; private set; } = false;
+    [field: SerializeField] public bool IsTrainingDummy { get; private set; } = false;
+    private OwnerType? ownerType;
+    public OwnerType GetOwnerType()
+    {
+        if (!ownerType.HasValue)
+        {
+            if (IsTrainingDummy) ownerType = OwnerType.TrainingDummy;
+            else if (AiDecisions != null) ownerType = OwnerType.Bot;
+            else ownerType = OwnerType.Player;
+        }
+        return ownerType.Value;
+    }
+    public bool IsNpc => GetOwnerType() != OwnerType.Player;
+    private bool _isBot = false;
+    public bool IsBot => _isBot;
+    private bool _isPlayer = false;
+    public bool IsPlayer => _isPlayer;
+    public enum OwnerType
+    {
+        Player,
+        Bot,
+        TrainingDummy
+    }
 
     public Vector2 GetPosition() => MovementController.transform.position;
     public Transform GetTransform() => MovementController.transform;
@@ -33,10 +59,15 @@ public class CharacterMediator : MonoBehaviour, IResettable
     public ulong PlayerId => playerId;
 
     public string PlayerName => NetworkInput.PlayerName.Value.ToString();
-    public bool IsLocalPlayer => NetworkInput.IsOwner;
+    public bool IsOwner => NetworkInput.IsOwner;
+    public bool IsLocalPlayer => IsOwner
+        && GetOwnerType() == OwnerType.Player;
+
+    public bool IsOwnerOrNPC => IsOwner
+        || GetOwnerType() != OwnerType.Player;
 
     public Floor CurrentFloor => FloorUtilities.GetCurrentFloor(GetPosition());
-    
+
     public PlayerData playerData;
 
     public CharacterToolkit Toolkit => AbilityManager.Toolkit;
@@ -57,10 +88,26 @@ public class CharacterMediator : MonoBehaviour, IResettable
     public event Action<CharacterMediator> Died, Respawned, RespawnedAfterDying;
     public event Action Disconnected;
 
+
+    private CharacterMediator teamMate;
+    public CharacterMediator GetTeamMate()
+    {
+        if (teamMate != null) return teamMate;
+
+        if (GameStateManager.Instance.GameInProgress)
+        {
+            teamMate = playerData.GetTeamMate().Mediator;
+            return teamMate;
+        }
+        return null;
+    }
+
     private void Awake()
     {
-        if (IsNPC) return;
+        if (GetOwnerType() == OwnerType.TrainingDummy) return;
         BloodManager?.Init(this, ParticlesMediator.bloodParticles);
+        _isBot = AiDecisions != null;
+        _isPlayer = !_isBot;
     }
 
     public void Die(CharacterMediator killer)
@@ -69,7 +116,8 @@ public class CharacterMediator : MonoBehaviour, IResettable
         Died?.Invoke(this);
         killer.RequestGotAKillEventInvoke(this);
 
-        if (!IsNPC)
+        if ((DataStorage.IsSinglePlayer && GetOwnerType() == OwnerType.Player)
+            || (!DataStorage.IsSinglePlayer))
         {
             // respawn after a delay if the match has not started yet
             RespawnManager.Instance.RequestRespawn(this);
@@ -89,7 +137,7 @@ public class CharacterMediator : MonoBehaviour, IResettable
         if (active)
         {
             characterPhysics.SetActive(active);
-            
+
             Tweener.Tween(0f, 0f, 1f, 0.25f, TweenStyle.quadratic,
                 value => SpriteRenderer.SetAlpha(value));
         }
@@ -115,11 +163,6 @@ public class CharacterMediator : MonoBehaviour, IResettable
         Ascendance?.Reset();
         BloodManager?.Reset();
 
-        if (SpriteRenderer != null)
-        {
-            SpriteRenderer.color = Color.white;
-        }
-
         Respawned?.Invoke(this);
         if (!wasAlive)
         {
@@ -136,6 +179,8 @@ public class CharacterMediator : MonoBehaviour, IResettable
     {
         if (victim != this) ScoredAKill?.Invoke(victim, this);
     }
+
+    public override string ToString() => $"{Toolkit.DatabaseEntry} {playerId} ({PlayerName})";
 
     #region Utilities
     public bool InRange(CharacterMediator otherMediator, float maxRange, bool ignoreFloors)

@@ -8,13 +8,20 @@ public static class Constants
     public const float floorYOffset = 75f;
     public const float crossFloorDamageMultiplier = 0.75f;
 
-    public const int roundsToWinMatch = 5;
+    public const int roundsToWinMatch = 6;
 
     public const int NPCID = 404;
 
-    public const float objectiveCaptureTime = 5f;
-    public const int attackersObjectiveRewardStacks = 1;
-    public const int defendersObjectiveRewardStacks = 2;
-
     public const float CharacterMaxMovementSpeed = 3.75f;
+
+    public const float colorUIMultiplier = 1.5f;
+
+    public static class Defaults
+    {
+        public const int frameRate = 150,
+            volume = 40,
+            fullScreen = 1,
+            relativeAudio = 1,
+            classicCrosshair = 0;
+    }
 }

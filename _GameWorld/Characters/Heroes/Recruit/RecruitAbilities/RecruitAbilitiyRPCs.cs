@@ -6,6 +6,7 @@ public class RecruitAbilityRPCs : AbilityRPCs
     [SerializeField] private SmokeGameObject smoke;
     [SerializeField] private Bomb bomb;
     [SerializeField] private DashPostMortem dashPostMortem;
+    [SerializeField] private GameObject decayChunkPrefab;
 
     [Rpc(SendTo.Server)]
     public void RequestBombRPC(ulong ownerId, Vector2 throwVelocity2D)
@@ -56,5 +57,17 @@ public class RecruitAbilityRPCs : AbilityRPCs
     private void ClientSmokeRPC(Vector2 position)
     {
         Instantiate(smoke, position, Quaternion.identity);
+    }
+
+    [Rpc(SendTo.Server)]
+    public void RequestDecayRPC()
+    {
+        ClientDecayRPC();
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void ClientDecayRPC()
+    {
+        Instantiate(decayChunkPrefab, ownerMediator.GetPosition(), QuaternionUtilities.Random());
     }
 }

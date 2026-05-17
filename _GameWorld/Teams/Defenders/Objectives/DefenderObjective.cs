@@ -1,3 +1,5 @@
+using System;
+using Unity.Netcode;
 using UnityEngine;
 
 public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IResettable
@@ -9,7 +11,7 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
     [field: SerializeField] public int SacrificeCostAttackerBlood { get; private set; } = 15;
     [field: SerializeField] public int SacrificesRequired { get; private set; } = 3;
 
-    [SerializeField] private AudioClip beep;
+    [SerializeField] private AudioClip channelStart, channelEnd;
     
     [Header("References")]
     [SerializeField] private SoundPlayer soundPlayer;
@@ -18,6 +20,7 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
     [SerializeField] private GameObject particleSpawner;
 
     public ObservableValue<int> SacrificesRemaining { get; private set; }
+    public event Action ObjectiveChanneled;
 
     private GameStateManager stateManager;
 
@@ -31,28 +34,36 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
     {
         stateManager = GameStateManager.Instance;
         stateManager.NewRoundStarted += Reset;
-
-        //manager.NewRoundStarted += GetActivated;
-        //manager.RoundEnded += GetDeactivated;
     }
 
-
+    private bool gameStarted = false;
     public bool CanSacrifice(CharacterMediator mediator)
-        => stateManager != null
-        && stateManager.GameInProgress
-        && !stateManager.RoundDecided
-        && sacrificeStartArea.OverlapPoint(mediator.GetPosition());
+    {
+        if (!gameStarted)
+        {
+            gameStarted = stateManager != null
+            && stateManager.GameInProgress
+            || mediator.AiDecisions != null; // altar defense
+            if (!gameStarted) return false;
+        }
+        return gameStarted
+            && (!stateManager.RoundDecided || !stateManager.GameInProgress) // round not decided or altar defense
+            && sacrificeStartArea.OverlapPoint(mediator.GetPosition());
+    }
+
     //&& mediator.InRange(transform.position, sacrificeRange, false);
     public void StartSacrifice(CharacterMediator sacrificedMediator)
     {
         var channeling = sacrificedMediator.Gun.ChannelingManager;
         if (channeling.Channeling) return;
 
-        soundPlayer.RequestPlaySound(transform, beep, false);
+        ObjectiveChanneled?.Invoke();
+        
+        soundPlayer.RequestPlaySound(transform, channelStart, true);
         channeling.StartChannelingSlowedDown
         (
             channelDuration,
-            () => CompleteSacrifice(sacrificedMediator),
+            () => RequestCompleteSacrifice(sacrificedMediator),
             sacrificedMediator,
             speedSlowWhileChanneling,
             false
@@ -61,13 +72,22 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
         chaliceManager.StartChannelingAnimation(sacrificedMediator, channelDuration);
     }
 
-    private void CompleteSacrifice(CharacterMediator sacrificedMediator)
+    private void RequestCompleteSacrifice(CharacterMediator sacrificedMediator)
     {
+        if (!NetworkManager.Singleton.IsHost) return;
+        
         if (!sacrificedMediator.IsAlive
             || stateManager.RoundDecided) return;
-        SortOutHealthCost(sacrificedMediator);
-        soundPlayer.RequestPlaySound(transform, beep, true);
 
+        // guaranteed to run on host - synch up all other players
+        sacrificedMediator.NetworkInput.ClientObjectiveChannelCompletedRpc(sacrificedMediator.PlayerId);
+    }
+
+    public void CompleteSacrifice(CharacterMediator sacrificedMediator)
+    {
+        soundPlayer.RequestPlaySound(transform, channelEnd, true);
+
+        SortOutHealthCost(sacrificedMediator);
         SacrificesRemaining--;
         if (SacrificesRemaining == 0)
         {
@@ -78,7 +98,7 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
 
     private void SortOutHealthCost(CharacterMediator sacrificedMediator)
     {
-        if (!sacrificedMediator.IsLocalPlayer) return;
+        if (!sacrificedMediator.IsOwner) return;
 
         sacrificedMediator.NetworkInput.TakeDamage(GetCurrentCost(sacrificedMediator), DamageTag.Neutral);
     }
@@ -100,80 +120,12 @@ public class DefenderObjective : SingletonMonoBehaviour<DefenderObjective>, IRes
         }
     }
 
-    /*
-    private IEnumerator CheckArea()
+    public bool SafeToSacrifice(CharacterMediator mediator)
     {
-        contestedTime = 0f;
-        beepGoal = 1f;
-        var wait = new WaitForSeconds(checkAreaInterval);
-
-        var manager = GameStateManager.Instance;
-        var attackers = manager.GetTeamDataByRole(Role.Attacker);
-        var defenders = manager.GetTeamDataByRole(Role.Defender);
-       
-
-        while (true)
-        {
-            if (IsPlayerOfATeamInArea(attackers, mediator => mediator.Ascendance.HasAscended))
-            {
-                if (!IsPlayerOfATeamInArea(defenders, null))
-                {
-                    ProgressContest(Role.Attacker);
-                }
-            }
-            else if (IsPlayerOfATeamInArea(defenders, mediator => mediator.BloodManager.BloodPickedUp))
-            {
-                if (!IsPlayerOfATeamInArea(attackers, null))
-                {
-                    ProgressContest(Role.Defender);
-                }
-            }
-            else if (contestedTime > 0f)
-            {
-                objectiveArea.GetDeactivated();
-                contestedTime = 0f;
-                beepGoal = beepInterval;
-            }
-
-            yield return wait;
-        }
+        return mediator.HealthComponent.CurrentHealth > GetCurrentCost(mediator)
+            || SacrificesRemaining == 1;
     }
 
-    private void ProgressContest(Role teamRole)
-    {
-        if (contestedTime == 0f)
-        {
-            objectiveArea.GetActivated();
-            soundPlayer.RequestPlaySound(transform, beep, false);
-        }
-        contestedTime += checkAreaInterval;
-        Debug.Log($"Area contested for {contestedTime:0.0} seconds.");
-
-        if (contestedTime >= beepGoal)
-        {
-            soundPlayer.RequestPlaySound(transform, beep, false);
-            beepGoal += beepInterval;
-        }
-
-        if (contestedTime >= Constants.objectiveCaptureTime)
-        {
-            Debug.Log($"Objective captured by {teamRole}s!");
-            GameStateManager.Instance.ObjectiveCaptured(teamRole);
-        }
-    }
-
-    private bool IsPlayerOfATeamInArea(TeamData team, Predicate<CharacterMediator> additionalCheck)
-    {
-        return team.Players.Any(p => IsPlayerInArea(p.Mediator, additionalCheck));
-    }
-    private bool IsPlayerInArea(CharacterMediator mediator, Predicate<CharacterMediator> additionalCheck)
-    {
-        bool passesExtraCheck = additionalCheck?.Invoke(mediator) ?? true;
-        return mediator.IsAlive
-            && passesExtraCheck
-            && mediator.InRange(transform.position, objectiveArea.transform.localScale.x);
-    }
-    */
     public void Reset()
     {
         SacrificesRemaining.Set(SacrificesRequired);

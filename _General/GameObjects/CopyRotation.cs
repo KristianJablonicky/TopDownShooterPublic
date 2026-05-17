@@ -3,9 +3,10 @@ using UnityEngine;
 public class CopyRotation : MonoBehaviour
 {
     [SerializeField] private GameObject copiedGO;
+    [SerializeField] private bool simplyFreezeRotation = false;
     private void Start()
     {
-        if (copiedGO == null)
+        if (copiedGO == null && !simplyFreezeRotation)
         {
             enabled = false;
         }
@@ -22,6 +23,10 @@ public class CopyRotation : MonoBehaviour
         if (copiedGO != null)
         {
             transform.rotation = copiedGO.transform.rotation;
+        }
+        else if (simplyFreezeRotation)
+        {
+            transform.rotation = Quaternion.identity;
         }
         else
         {

@@ -1,4 +1,5 @@
 using System;
+using UnityEditor;
 using UnityEngine;
 
 public class RoundStartWait : SingletonMonoBehaviour<RoundStartWait>
@@ -8,28 +9,32 @@ public class RoundStartWait : SingletonMonoBehaviour<RoundStartWait>
 
     private GameStateManager gameStateManager;
 
-    private CharacterMediator localPlayer;
-
-
     private void Start()
     {
         gameStateManager = GameStateManager.Instance;
         gameStateManager.NewRoundStarted += OnNewRound;
-
-        PlayerNetworkInput.PlayerSpawned += (player) => localPlayer = player;
     }
 
     private void OnNewRound()
     {
-        var delay = localPlayer.Role == Role.Attacker ? delayAttackers : delayDefenders;
-        DisableActions(delay);
-        OnRoundStartWait?.Invoke(delay);
+        foreach (var mediator in CharacterManager.Instance.Mediators.Values)
+        {
+            if (!mediator.IsOwner) continue;
+            
+            var delay = mediator.Role == Role.Attacker ? delayAttackers : delayDefenders;
+            DisableActions(delay, mediator);
+            if (mediator.IsLocalPlayer)
+            {
+                OnRoundStartWait?.Invoke(delay);
+            }
+        }
     }
 
-    private void DisableActions(float delay)
+    private void DisableActions(float delay, CharacterMediator mediator)
     {
+        mediator.Gun.ChannelingManager.Reset();
         // To avoid lovely stuff like Dracula spawn killing
-        localPlayer.AbilityManager.DisableAbilities(delay, delayAttackers);
-        localPlayer.Gun.ChannelingManager.StartChannelingStandingStill(delay, null, localPlayer, false);
+        mediator.AbilityManager.DisableAbilities(delay, delayAttackers);
+        mediator.Gun.ChannelingManager.StartChannelingStandingStill(delay, null, mediator, false);
     }
 }

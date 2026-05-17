@@ -27,8 +27,9 @@ public class BloodManager : MonoBehaviour, IResettable
 
     private void OnDeath(CharacterMediator mediator)
     {
-        if (mediator.Role == Role.Attacker
-            || BloodPickedUp)
+        if ((mediator.Role == Role.Attacker
+            && mediator.playerData.GetTeamMate().Mediator.IsAlive) // don't drop blood if round is lost
+            || BloodPickedUp) // drop blood you've already picked up
         {
             bloodPuddleInstance = Instantiate(
                 bloodPuddle,

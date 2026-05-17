@@ -14,14 +14,17 @@ public class DestroyOnRoundEnd : MonoBehaviour
     }
     private void CleanUp()
     {
-        VirtualCleanUp();
-        Destroy(gameObject);
+        if (gameObject != null)
+        {
+            Destroy(gameObject);
+        }
     }
     protected virtual void VirtualStart() { }
     protected virtual void VirtualCleanUp() { }
 
     private void OnDestroy()
     {
+        VirtualCleanUp();
         var manager = GameStateManager.Instance;
         manager.RoundEnded -= CleanUp;
         manager.NewRoundStarted -= CleanUp;

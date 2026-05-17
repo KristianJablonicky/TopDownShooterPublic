@@ -11,7 +11,6 @@ public class SingletonMonoBehaviour<T> : MonoBehaviour where T : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
         Instance = this as T;
         OverriddenAwake();
     }

@@ -20,6 +20,7 @@ public abstract class AbilityPostMortem : ActiveAbility
             if (coolDown != 0f)
             {
                 CurrentCoolDown.Set(coolDown);
+                InvokePutOnCoolDown();
             }
 
             ThirdEyeOpen();

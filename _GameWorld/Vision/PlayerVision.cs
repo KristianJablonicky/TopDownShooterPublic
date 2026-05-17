@@ -1,14 +1,17 @@
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI;
 
 public class PlayerVision : VisionMesh, IResettable
 {
 
+    [SerializeField] private float guaranteedVisionMultiplierDefender = 0.8f;
     [Header("References")]
     [SerializeField] private Transform playerPosition;
     [SerializeField] private VisionLight visionLight;
     [SerializeField] private CharacterMediator mediator;
 
     [SerializeField] private GameObject guaranteedTeamMateVision;
+    
 
     [Header("Misc")]
     [SerializeField] private LayerMask teamMateMask;
@@ -16,25 +19,33 @@ public class PlayerVision : VisionMesh, IResettable
     private bool localPlayerOrAlly = false;
 
     private Transform playerTransform;
-    private float baseVisionRange;
+
+    private bool isTeamMate = false;
+    private float defaultFOV, defaultGuaranteedRange;
+
     public void GetEnabled(bool teamMate)
     {
+        isTeamMate = teamMate;
         if (teamMate)
         {
             localPlayerOrAlly = true;
             gameObject.SetActive(true);
 
             gameObject.layer = Mathf.RoundToInt(Mathf.Log(teamMateMask.value, 2));
-
             SwitchLights(false);
-
-            // TODO: reconsider
-            // guaranteedTeamMateVision.SetActive(true);
+            mediator.RotationController.enabled = false;
         }
         else
         {
             SwitchLights(true);
         }
+        defaultFOV = frontalFov;
+        defaultGuaranteedRange = guaranteedVisionRangeMultiplier;
+        mediator.NewRoleAssigned += role => OnRoleAssigned(role, teamMate);
+
+        //guaranteedTeamMateVision.SetActive(true);
+        // a better solution that doesn't involve having a small circle of light around you
+        mediator.AnimationController.MakeSpritesAlwaysVisible();
     }
 
     public void ChangeActivityIfPlayerOrAlly(bool active)
@@ -56,16 +67,38 @@ public class PlayerVision : VisionMesh, IResettable
 
     protected override void VirtualStart()
     {
+        visionRangeReference.ModifiableValue.CurrentValue.OnValueSet +=
+            (newValue) => SetVisionRange(newValue);
         playerTransform = mediator.MovementController.transform;
 
         if (!localPlayerOrAlly)
         {
             localPlayerOrAlly = mediator.IsLocalPlayer;
         }
-
+        visionRange = visionRangeReference.ModifiableValue.CurrentValue;
         visionLight.UpdateVision(visionRange, visionRange * guaranteedVisionRangeMultiplier, frontalFov);
-
-        baseVisionRange = visionRange;
+    }
+    private void OnRoleAssigned(Role newRole, bool teamMate)
+    {
+        if (newRole == Role.Attacker)
+        {
+            frontalFov = defaultFOV;
+            guaranteedVisionRangeMultiplier = defaultGuaranteedRange;
+            if (!teamMate)
+            {
+                visionLight.ChangeDistantLightState(true);
+            }
+        }
+        else
+        {
+            frontalFov = 0f;
+            guaranteedVisionRangeMultiplier = guaranteedVisionMultiplierDefender;
+            if (!teamMate)
+            {
+                visionLight.ChangeDistantLightState(false);
+            }
+        }
+        UpdateVisionLight();
     }
 
     private void LateUpdate()
@@ -77,23 +110,21 @@ public class PlayerVision : VisionMesh, IResettable
             playerTransform.position,
             mediator.RotationController.GetRotationAngle
         );
+
+        if (isTeamMate)
+        {
+            //Debug.Log(mediator.RotationController.GetRotationAngle);
+        }
     }
 
     public void Reset()
     {
-        // reset before the Start() method executed leads to bugs
-        if (baseVisionRange == 0) return;
-
-        SetVisionRange(baseVisionRange);
-    }
-
-    public void SetVisionRangeProportional(float newVisionPercentage)
-    {
-        SetVisionRange(baseVisionRange * newVisionPercentage);
+        mediator.VisionRange.ModifiableValue.Reset();
     }
 
     private Coroutine visionChangeAnimationCoroutine;
-
+    private void UpdateVisionLight()
+        => visionLight.UpdateVision(visionRange, guaranteedVisionRangeMultiplier * visionRange);
     public void SetVisionRange(float newVisionRange, float duration = 0.25f)
     {
         if (newVisionRange == visionRange) return;
@@ -107,7 +138,7 @@ public class PlayerVision : VisionMesh, IResettable
             Tweener.TweenCoroutine(this, visionRange, newVisionRange, duration, TweenStyle.quadratic,
                 value => {
                     visionRange = value;
-                    visionLight.UpdateVision(value, guaranteedVisionRangeMultiplier * value);
+                    UpdateVisionLight();
                 },
                 onExit: () =>
                 {
@@ -118,11 +149,5 @@ public class PlayerVision : VisionMesh, IResettable
                 }
             )
         );
-    }
-
-    public void AdjustBaseVisionRange(float newBase)
-    {
-        baseVisionRange += newBase;
-        SetVisionRange(baseVisionRange);
     }
 }

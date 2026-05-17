@@ -1,7 +1,5 @@
 using System.Collections;
-using System.Threading.Tasks;
 using Unity.Netcode;
-using UnityEditor;
 using UnityEngine;
 public class DjinnRPCs : AbilityRPCs
 {
@@ -18,16 +16,24 @@ public class DjinnRPCs : AbilityRPCs
         var caster = manager.Mediators[casterID];
         if (GameStateManager.Instance.GameInProgress)
         {
-            var teamMate = caster.playerData.GetTeamMate();
-            var ids = new ulong[] { casterID, teamMate.Mediator.PlayerId };
-            ClientWishRPC(GetRpcParams(ids));
+            var teamMate = caster.GetTeamMate();
+
+            var ids = new ulong[] { casterID, teamMate.PlayerId };
+            if (teamMate.IsNpc)
+            {
+                ClientWishRPC(GetRpcParams(caster.PlayerId));
+                Wish(teamMate);
+            }
+            else
+            {
+                ClientWishRPC(GetRpcParams(ids));
+            }
             WishVisualsRPC(ids);
+            return;
         }
-        else
-        {
-            ClientWishRPC(GetRpcParams(caster.PlayerId));
-            WishVisualsRPC(caster.PlayerId);
-        }
+        
+        WishVisualsRPC(caster.PlayerId);
+        ClientWishRPC(GetRpcParams(caster.PlayerId));
     }
 
     [Rpc(SendTo.Server)]
@@ -45,6 +51,7 @@ public class DjinnRPCs : AbilityRPCs
 
     private void Wish(CharacterMediator mediator)
     {
+        if (!mediator.IsAlive) return;
         mediator.NetworkInput.RequestHealRpc(wish.HealAmount, false);
 
         mediator.Gun.ChannelingManager.RequestInterrupt();
@@ -78,21 +85,52 @@ public class DjinnRPCs : AbilityRPCs
 
     private void WishVisuals(CharacterMediator mediator)
     {
+        if (!mediator.IsAlive) return;
         Instantiate(wish.WishVisuals,
             mediator.MovementController.transform
         );
     }
 
+    [Rpc(SendTo.Everyone)]
+    public void FingerGunRpc(ulong senderId)
+    {
+        var mediator = CharacterManager.GetCharacterMediator(senderId);
+        SpawnFingerGun(mediator);
+
+        var teamMate = mediator.GetTeamMate();
+        if (teamMate != null)
+        {
+            SpawnFingerGun(teamMate);
+        }
+    }
+
+    private void SpawnFingerGun(CharacterMediator mediator)
+    {
+        if (!mediator.IsAlive) return;
+        var instance = Instantiate(wish.FingerGunVisuals, mediator.GetTransform());
+        instance.PlayAnimation(wish.ChannelingDuration);
+    }
+
     [Rpc(SendTo.Server)]
-    public void  RequestReleaseDjinnRPC(ulong summonerId, bool postMortem)
+    public void RequestReleaseDjinnRPC(ulong summonerId, bool postMortem)
     {
         var summoner = CharacterManager.Instance.Mediators[summonerId];
         var djinnInstance = Instantiate(djinn, summoner.GetPosition(), Quaternion.identity);
-        djinnInstance.NetworkObject.SpawnWithOwnership(summonerId);
+        if (!summoner.IsNpc)
+        {
+            djinnInstance.NetworkObject.SpawnWithOwnership(summonerId);
+        }
+        else
+        {
+            djinnInstance.NetworkObject.Spawn();
+            djinnInstance.SetUp(summonerId);
+            summoner = CharacterManager.Instance.LocalPlayerMediator;
+        }
 
         if (!postMortem)
         {
-            StartCoroutine(DespawnDjinnAfterDelay(djinnInstance));
+            StartRubbingRpc(summonerId);
+            //StartCoroutine(DespawnDjinnAfterDelay(djinnInstance));
         }
         else
         {
@@ -106,13 +144,23 @@ public class DjinnRPCs : AbilityRPCs
         }
     }
 
+    [Rpc(SendTo.Everyone)]
+    private void StartRubbingRpc(ulong rubberId)
+    {
+        var rubbingMediator = CharacterManager.GetCharacterMediator(rubberId);
+        if (rubbingMediator.AbilityManager.UtilityAbility is ReleaseDjinn ability)
+        {
+            ability.StartRubbing();
+        }
+    }
+
     private IEnumerator DespawnDjinnAfterDelay(DjinnSummoned instance)
     {
         yield return new WaitForSeconds(releaseData.Duration + releaseData.FlyBackDuration + 0.1f);
         DespawnDjinn(instance);
     }
 
-    private void DespawnDjinn(DjinnSummoned instance)
+    public void DespawnDjinn(DjinnSummoned instance)
     {
         instance?.NetworkObject.Despawn(true);
     }

@@ -23,14 +23,13 @@ public class CrosshairColorDropDown : MonoBehaviour
         {
             crosshairColor.SetColor(value);
         });
-
-        var storedColor = DataStorage.Instance.GetInt(DataKeyInt.SettingsCrosshairColor);
-        dropDown.value = storedColor;
-        dropDown.RefreshShownValue();
     }
 
-    private void OnDestroy()
+    public TMP_Dropdown GetDropdown() => dropDown;
+
+    public void SetInitialValue(int value)
     {
-        DataStorage.Instance.SetInt(DataKeyInt.SettingsCrosshairColor, dropDown.value);
+        dropDown.value = value;
+        dropDown.RefreshShownValue();
     }
 }

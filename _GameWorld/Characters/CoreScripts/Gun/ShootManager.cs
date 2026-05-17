@@ -56,7 +56,7 @@ public class ShootManager : IUpdatable, IResettable
             () => CurrentAmmo.Set(config.capacity),
             true
         );
-        channel.AlsoPlayAnAnimation(Animations.Reload);
+        channel.AlsoPlayAnimation(Animations.Reload);
     }
 
     private void Reload()

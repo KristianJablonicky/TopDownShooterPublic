@@ -18,7 +18,7 @@ public class PostMortemEye : MonoBehaviour
 
         var ability = mediator.AbilityManager.AbilityPostMortem;
         ability.AbilityBecameReady += () => PlayEyeAnimation(true);
-        ability.AbilityCast += () => PlayEyeAnimation(false);
+        ability.Cast += () => PlayEyeAnimation(false);
 
     }
 

@@ -8,6 +8,8 @@ public class ObservableValue<T> where T : struct, IComparable, IConvertible
     /// </summary>
     public event Action<T, T> OnAdjusted;
 
+    public event Action<T, T> T1SetFromT2;
+
     public event Action<T> OnValueSet;
 
     public ObservableValue(T initialValue)
@@ -19,12 +21,15 @@ public class ObservableValue<T> where T : struct, IComparable, IConvertible
 
     public void Set(T newValue)
     {
+        var previousValue = _value;
         _value = newValue;
         OnValueSet?.Invoke(newValue);
+        T1SetFromT2?.Invoke(newValue, previousValue);
     }
 
     public void Adjust(T adjustAmount)
     {
+        var previousValue = _value;
         var type = typeof(T);
         if (type == typeof(int))
             _value = (T)(object)((int)(object)_value + (int)(object)adjustAmount);
@@ -37,6 +42,7 @@ public class ObservableValue<T> where T : struct, IComparable, IConvertible
 
         OnAdjusted?.Invoke(_value, adjustAmount);
         OnValueSet?.Invoke(_value);
+        T1SetFromT2?.Invoke(_value, previousValue);
     }
 
     public void Adjust(float adjustAmount, float? floor = null, float? ceiling = null)
@@ -68,10 +74,7 @@ public class ObservableValue<T> where T : struct, IComparable, IConvertible
         }
     }
 
-    public static implicit operator T(ObservableValue<T> observable)
-    {
-        return observable.Get();
-    }
+    public static implicit operator T(ObservableValue<T> observable) => observable.Get();
 
     private void Increment(double delta)
     {

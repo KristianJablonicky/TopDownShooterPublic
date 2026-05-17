@@ -6,11 +6,11 @@ using UnityEngine.UI;
 public class HeroSelectionButton : MonoBehaviour
 {
     [SerializeField] private CharacterToolkit toolkit;
-    [SerializeField] private AbilityUI[] abilityUIButtons;
-    [SerializeField] private GunDescriptionUI gunDescription;
+    [SerializeField] private CardSetUp[] abilityUIButtons;
+    [SerializeField] private CardSetUp gunCardButton;
 
     [SerializeField] private TMP_Text heroName, heroDescription, abilityDescription;
-    [SerializeField] private Image BackgroundHighlight;
+    [SerializeField] private Graphic BackgroundHighlight;
 
     private static Action<HeroSelectionButton> OnHeroSelected;
 
@@ -48,9 +48,9 @@ public class HeroSelectionButton : MonoBehaviour
     {
         for (int i = 0; i < abilityUIButtons.Length; i++)
         {
-            abilityUIButtons[i].Init(toolkit.GetAbility((AbilityType)i), true);
+            abilityUIButtons[i].Init(toolkit, toolkit.GetAbility((AbilityType)i));
         }
-        gunDescription.Init(toolkit);
+        gunCardButton.Init(toolkit, toolkit.GunConfig);
         heroName.text = toolkit.HeroName;
         heroDescription.text = toolkit.HeroDescription;
         abilityDescription.text = "";
